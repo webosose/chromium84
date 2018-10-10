@@ -5521,8 +5521,22 @@ void RenderFrameImpl::DidStopLoading() {
 }
 
 void RenderFrameImpl::NotifyAccessibilityModeChange(ui::AXMode new_mode) {
+  if (new_mode.is_mode_off() && render_view_->GetWebView()) {
+    render_view_->GetWebView()
+        ->GetSettings()
+        ->SetAccessibilityExploreByMouseEnabled(false);
+  }
+
   for (auto& observer : observers_)
     observer.AccessibilityModeChanged(new_mode);
+
+  if (new_mode == ui::kAXModeComplete &&
+      GetWebkitPreferences().accessibility_explore_by_mouse_enabled &&
+      render_view_->GetWebView()) {
+    render_view_->GetWebView()
+        ->GetSettings()
+        ->SetAccessibilityExploreByMouseEnabled(true);
+  }
 }
 
 void RenderFrameImpl::FocusedElementChanged(const blink::WebElement& element) {

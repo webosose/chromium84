@@ -658,6 +658,9 @@ const WebPreferences RenderViewHostImpl::ComputeWebPreferences() {
   prefs.user_gesture_required_for_presentation = !command_line.HasSwitch(
       switches::kDisableGestureRequirementForPresentation);
 
+  prefs.accessibility_explore_by_mouse_enabled =
+      command_line.HasSwitch(switches::kEnableAccessibilityExploreByMouse);
+
   if (delegate_->HideDownloadUI())
     prefs.hide_download_ui = true;
 

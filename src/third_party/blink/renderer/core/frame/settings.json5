@@ -1105,7 +1105,10 @@
       invalidate: "MediaQuery",
       type: "NavigationControls",
     },
-
+    {
+      name: "accessibilityExploreByMouseEnabled",
+      initial: "false",
+    },
     {
       name: "accessibilityAlwaysShowFocus",
       initial: false,

@@ -91,6 +91,10 @@ class StyleFetchedImage final : public StyleImage,
 
   // Whether this was created by an ad-related CSSParserContext.
   const bool is_ad_related_;
+
+#if defined(OS_WEBOS)
+  bool commit_deferred_ = false;
+#endif
 };
 
 template <>

@@ -1520,6 +1520,8 @@ class CORE_EXPORT Document : public ContainerNode,
   SlotAssignmentEngine& GetSlotAssignmentEngine();
 
   bool IsSlotAssignmentOrLegacyDistributionDirty() const;
+  bool AddDeferredBackgroundImage();
+  void RemoveDeferredBackgroundImage();
 
 #if DCHECK_IS_ON()
   unsigned& SlotAssignmentRecalcForbiddenRecursionDepth() {
@@ -2258,6 +2260,8 @@ class CORE_EXPORT Document : public ContainerNode,
       pending_has_trust_tokens_resolvers_;
 
   FontPreloadManager font_preload_manager_;
+
+  int deferred_background_image_count_ = 0;
 
   WeakMember<Node> find_in_page_active_match_node_;
 };

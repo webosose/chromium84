@@ -54,11 +54,6 @@ const char kWebOSSystemOnCloseNotifyJS[] =
 const char kMethodInvocationAsConstructorOnly[] =
     "WebOSServiceBridge function must be invoked as a constructor only";
 
-std::string GetServiceNameWithPID(const std::string& name) {
-  std::string result(name);
-  return result.append("-").append(std::to_string(getpid()));
-}
-
 }  // anonymous namespace
 
 namespace injections {
@@ -122,7 +117,6 @@ WebOSServiceBridgeInjection::WebOSServiceBridgeInjection(std::string appid)
   provider->GetSystemServiceBridge(
       remote_system_bridge_.BindNewPipeAndPassReceiver());
   remote_system_bridge_->Connect(
-      GetServiceNameWithPID(identifier_),
       identifier_,
       base::BindRepeating(
           &WebOSServiceBridgeInjection::OnConnect,

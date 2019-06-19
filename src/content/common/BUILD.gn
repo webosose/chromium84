@@ -481,6 +481,9 @@ mojom("mojo_bindings") {
   if (use_clang_profiling_inside_sandbox) {
     enabled_features += [ "clang_profiling_inside_sandbox" ]
   }
+  if (use_neva_appruntime) {
+    enabled_features += [ "neva_appruntime" ]
+  }
 
   cpp_typemaps = [
     {

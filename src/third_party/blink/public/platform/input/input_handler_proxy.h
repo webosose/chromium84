@@ -213,6 +213,11 @@ class BLINK_PLATFORM_EXPORT InputHandlerProxy
   EventDisposition HandleTouchMove(const blink::WebTouchEvent& event);
   EventDisposition HandleTouchEnd(const blink::WebTouchEvent& event);
 
+#if defined(USE_NEVA_APPRUNTIME)
+  blink::WebGestureEvent MaybeAdjustGestureScrollUpdate(
+      const blink::WebGestureEvent& event);
+#endif
+
   void InputHandlerScrollEnd();
 
   // Request a frame of animation from the InputHandler or

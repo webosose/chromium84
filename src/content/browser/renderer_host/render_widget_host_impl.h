@@ -809,6 +809,11 @@ class CONTENT_EXPORT RenderWidgetHostImpl
     return blink_widget_host_receiver_;
   }
 
+#if defined(USE_NEVA_APPRUNTIME)
+  void ActivateRendererCompositor();
+  void DeactivateRendererCompositor();
+#endif
+
  protected:
   // ---------------------------------------------------------------------------
   // The following method is overridden by RenderViewHost to send upwards to

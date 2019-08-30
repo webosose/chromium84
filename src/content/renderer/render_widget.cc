@@ -584,6 +584,10 @@ bool RenderWidget::OnMessageReceived(const IPC::Message& message) {
     IPC_MESSAGE_HANDLER(DragMsg_TargetDragLeave, OnDragTargetDragLeave)
     IPC_MESSAGE_HANDLER(DragMsg_TargetDrop, OnDragTargetDrop)
     IPC_MESSAGE_HANDLER(DragMsg_SourceEnded, OnDragSourceEnded)
+#if defined(USE_NEVA_APPRUNTIME)
+    IPC_MESSAGE_HANDLER(WidgetMsg_ActivateCompositor, OnActivateCompositor)
+    IPC_MESSAGE_HANDLER(WidgetMsg_DeactivateCompositor, OnDeactivateCompositor)
+#endif
     IPC_MESSAGE_UNHANDLED(handled = false)
   IPC_END_MESSAGE_MAP()
   return handled;
@@ -2169,6 +2173,17 @@ void RenderWidget::OnDragSourceEnded(const gfx::PointF& client_point,
   frame_widget->DragSourceEndedAt(ConvertWindowPointToViewport(client_point),
                                   screen_point, op);
 }
+
+#if defined(USE_NEVA_APPRUNTIME)
+void RenderWidget::OnActivateCompositor() {
+  if (!never_composited_)
+    webwidget_->SetCompositorVisible(!is_hidden_);
+}
+
+void RenderWidget::OnDeactivateCompositor() {
+  webwidget_->SetCompositorVisible(false);
+}
+#endif
 
 void RenderWidget::ShowVirtualKeyboardOnElementFocus() {
 #if defined(OS_CHROMEOS)

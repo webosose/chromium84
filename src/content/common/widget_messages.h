@@ -227,4 +227,9 @@ IPC_MESSAGE_ROUTED0(WidgetHostMsg_WaitForNextFrameForTests_ACK)
 // after the frame widget has painted something.
 IPC_MESSAGE_ROUTED0(WidgetHostMsg_DidFirstVisuallyNonEmptyPaint)
 
+#if defined(USE_NEVA_APPRUNTIME)
+IPC_MESSAGE_ROUTED0(WidgetMsg_ActivateCompositor)
+IPC_MESSAGE_ROUTED0(WidgetMsg_DeactivateCompositor)
+#endif
+
 #endif  //  CONTENT_COMMON_WIDGET_MESSAGES_H_

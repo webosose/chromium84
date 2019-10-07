@@ -96,8 +96,11 @@ void WaylandKeyboard::OnKeyboardEnter(void* data,
 
   WaylandSeat* seat = WaylandDisplay::GetInstance()->PrimarySeat();
 
+  const uint32_t device_id = wl_proxy_get_id(
+      reinterpret_cast<wl_proxy*>(input_keyboard));
+
   if (!surface) {
-    seat->SetFocusWindowHandle(0);
+    seat->SetEnteredWindowHandle(device_id, 0);
     return;
   }
 
@@ -107,8 +110,13 @@ void WaylandKeyboard::OnKeyboardEnter(void* data,
   WaylandKeyboard* device = static_cast<WaylandKeyboard*>(data);
   WaylandWindow* window =
     static_cast<WaylandWindow*>(wl_surface_get_user_data(surface));
-  seat->SetFocusWindowHandle(window->Handle());
-  device->GetDispatcher()->KeyboardEnter(window->Handle());
+
+  if (window) {
+    seat->SetEnteredWindowHandle(device_id, window->Handle());
+    seat->SetActiveInputWindow(window->GetDisplayId(),
+                               window->Handle());
+    device->GetDispatcher()->KeyboardEnter(window->Handle());
+  }
 }
 
 void WaylandKeyboard::OnKeyboardLeave(void* data,
@@ -117,6 +125,9 @@ void WaylandKeyboard::OnKeyboardLeave(void* data,
                                       wl_surface* surface) {
   WaylandDisplay::GetInstance()->SetSerial(serial);
 
+  const uint32_t device_id = wl_proxy_get_id(
+      reinterpret_cast<wl_proxy*>(input_keyboard));
+
   if (!surface || !data)
     return;
 
@@ -124,8 +135,11 @@ void WaylandKeyboard::OnKeyboardLeave(void* data,
   WaylandKeyboard* device = static_cast<WaylandKeyboard*>(data);
   WaylandWindow* window =
     static_cast<WaylandWindow*>(wl_surface_get_user_data(surface));
-  device->GetDispatcher()->KeyboardLeave(window->Handle());
-  seat->SetFocusWindowHandle(0);
+
+  if (window) {
+    device->GetDispatcher()->KeyboardLeave(window->Handle());
+    seat->SetEnteredWindowHandle(device_id, 0);
+  }
 }
 
 void WaylandKeyboard::OnKeyModifiers(void *data,

@@ -329,6 +329,7 @@ class CONTENT_EXPORT RenderWidgetHostViewAura
   void SetEnableHtmlSystemKeyboardAttr(bool enable);
   bool SystemKeyboardDisabled() const override;
   gfx::Rect GetTextInputBounds() const override;
+  int GetTextInputMaxLength() const override;
 #endif
 
 #if defined(USE_NEVA_MEDIA)

@@ -1404,8 +1404,14 @@ WebTextInputInfo InputMethodController::TextInputInfo() const {
   if (info.type == kWebTextInputTypeNone)
     return info;
 
-  if (Element* focused_element = GetDocument().FocusedElement())
+  if (Element* focused_element = GetDocument().FocusedElement()) {
     info.bounds = focused_element->BoundsInViewport();
+    if (auto* input = DynamicTo<HTMLInputElement>(focused_element)) {
+      info.max_length = input->maxLength();
+    } else if (auto* textarea = DynamicTo<HTMLTextAreaElement>(focused_element)) {
+      info.max_length = textarea->maxLength();
+    }
+  }
 
   if (!GetFrame().GetEditor().CanEdit())
     return info;

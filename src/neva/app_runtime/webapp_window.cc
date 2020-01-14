@@ -813,7 +813,7 @@ void WebAppWindow::InitWindow() {
 }
 
 void WebAppWindow::RecreateIfNeeded() {
-  if (widget_ || host_ || webview_ || !GetWebContents())
+  if (widget_ || host_ || !GetWebContents())
     return;
 
   SetupWebContents(GetWebContents());

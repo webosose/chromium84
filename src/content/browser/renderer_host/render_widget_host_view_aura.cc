@@ -126,6 +126,7 @@
 #endif
 
 #if defined(USE_NEVA_APPRUNTIME)
+#include "content/browser/renderer_host/delegated_frame_host_client_neva.h"
 #include "third_party/blink/public/platform/web_text_input_type.h"
 #endif
 
@@ -2049,7 +2050,11 @@ void RenderWidgetHostViewAura::CreateDelegatedFrameHostClient() {
     return;
 
   delegated_frame_host_client_ =
+#if defined(USE_NEVA_APPRUNTIME)
+      std::make_unique<DelegatedFrameHostClientNeva>(this);
+#else
       std::make_unique<DelegatedFrameHostClientAura>(this);
+#endif
   delegated_frame_host_ = std::make_unique<DelegatedFrameHost>(
       frame_sink_id_, delegated_frame_host_client_.get(),
       false /* should_register_frame_sink_id */);
@@ -2545,6 +2550,13 @@ int RenderWidgetHostViewAura::GetTextInputMaxLength() const {
   if (text_input_manager_ && text_input_manager_->GetTextInputState())
     return text_input_manager_->GetTextInputState()->max_length;
   return 0;
+}
+
+bool RenderWidgetHostViewAura::IsKeepAliveWebApp() const {
+  RenderViewHost* rvh = RenderViewHost::From(host());
+  if (rvh)
+    return rvh->GetWebkitPreferences().keep_alive_webapp;
+  return false;
 }
 #endif
 

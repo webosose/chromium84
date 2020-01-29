@@ -330,6 +330,7 @@ class CONTENT_EXPORT RenderWidgetHostViewAura
   bool SystemKeyboardDisabled() const override;
   gfx::Rect GetTextInputBounds() const override;
   int GetTextInputMaxLength() const override;
+  bool IsKeepAliveWebApp() const;
 #endif
 
 #if defined(USE_NEVA_MEDIA)

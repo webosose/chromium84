@@ -894,6 +894,7 @@ void RenderView::ApplyWebPreferences(const WebPreferences& prefs,
 #endif
 #if defined(USE_NEVA_APPRUNTIME)
   settings->SetAllowLocalResourceLoad(prefs.allow_local_resource_load);
+  settings->SetKeepAliveWebApp(prefs.keep_alive_webapp);
 #endif
 
   settings->SetLowPriorityIframesThreshold(
@@ -1888,6 +1889,14 @@ void RenderViewImpl::SuspendVideoCaptureDevices(bool suspend) {
       video_devices, suspend);
 }
 #endif  // defined(OS_ANDROID) || defined(USE_NEVA_SUSPEND_MEDIA_CAPTURE)
+
+#if defined(USE_NEVA_APPRUNTIME)
+void RenderViewImpl::SetKeepAliveWebApp(bool keepAlive) {
+  webkit_preferences_.keep_alive_webapp = keepAlive;
+  if (GetWebView() && GetWebView()->GetSettings())
+    GetWebView()->GetSettings()->SetKeepAliveWebApp(keepAlive);
+}
+#endif // USE_NEVA_APPRUNTIME
 
 unsigned RenderViewImpl::GetLocalSessionHistoryLengthForTesting() const {
   return history_list_length_;

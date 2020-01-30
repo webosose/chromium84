@@ -338,6 +338,10 @@ class CONTENT_EXPORT RenderWidgetHostDelegate {
   // Notify the delegate that the screen orientation has been changed.
   virtual void DidChangeScreenOrientation() {}
 
+#if defined(USE_NEVA_APPRUNTIME)
+  virtual void DidCompleteSwap() {}
+#endif
+
  protected:
   virtual ~RenderWidgetHostDelegate() {}
 };

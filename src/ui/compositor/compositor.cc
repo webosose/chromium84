@@ -261,6 +261,11 @@ Compositor::Compositor(const viz::FrameSinkId& frame_sink_id,
     slow_animations_ = std::make_unique<ScopedAnimationDurationScaleMode>(
         ScopedAnimationDurationScaleMode::SLOW_DURATION);
   }
+
+#if defined(USE_NEVA_APPRUNTIME)
+  if (switches::UseVizFMPWithTimeout())
+    disable_drawing_ = false;
+#endif
 }
 
 Compositor::~Compositor() {
@@ -319,7 +324,12 @@ void Compositor::SetLayerTreeFrameSink(
   if (display_private_) {
     disabled_swap_until_resize_ = false;
     display_private_->Resize(size());
+#if defined(USE_NEVA_APPRUNTIME)
+    if (display_visibility_enabled_)
+      display_private_->SetDisplayVisible(host_->IsVisible());
+#else
     display_private_->SetDisplayVisible(host_->IsVisible());
+#endif
     display_private_->SetDisplayColorSpaces(display_color_spaces_);
     display_private_->SetDisplayColorMatrix(
         gfx::Transform(display_color_matrix_));
@@ -507,8 +517,13 @@ void Compositor::SetVisible(bool visible) {
   host_->SetVisible(visible);
   // Visibility is reset when the output surface is lost, so this must also be
   // updated then.
+#if defined(USE_NEVA_APPRUNTIME)
+  if (display_private_ && display_visibility_enabled_)
+    display_private_->SetDisplayVisible(visible);
+#else
   if (display_private_)
     display_private_->SetDisplayVisible(visible);
+#endif
 }
 
 bool Compositor::IsVisible() {
@@ -767,6 +782,13 @@ void Compositor::OnCompleteSwapWithNewSize(const gfx::Size& size) {
 }
 #endif
 
+#if defined(USE_NEVA_APPRUNTIME)
+void Compositor::OnCompleteSwap() {
+  for (auto& observer : observer_list_)
+    observer.OnCompositingCompleteSwap(this);
+}
+#endif
+
 void Compositor::SetOutputIsSecure(bool output_is_secure) {
   output_is_secure_ = output_is_secure;
   if (display_private_)
@@ -792,12 +814,7 @@ void Compositor::SuspendDrawing() {
   if (disable_drawing_)
     return;
 
-  // FIXME(neva): Check if we still need it or not
-  // It was implemented in content/browser/compositor/gpu_process_transport_factory.h/cc
-  // which was removed in upstream in v.81.
-  // ContextFactoryPrivate was removed in upstream in v.84.
-  //if (context_factory_private_)
-  //  context_factory_private_->ForceImmediateDrawAndSwapIfPossible(this);
+  display_private_->ForceImmediateDrawAndSwapIfPossible();
 
   disable_drawing_ = true;
   host_->SetVisible(false);
@@ -809,6 +826,15 @@ void Compositor::ResumeDrawing() {
 
   disable_drawing_ = false;
   host_->SetVisible(true);
+}
+
+void Compositor::RenderProcessGone() {
+  if (display_private_)
+    display_private_->RenderProcessGone();
+}
+
+void Compositor::SetDisplayVisibilityEnabled(bool enabled) {
+  display_visibility_enabled_ = enabled;
 }
 #endif
 

@@ -699,6 +699,11 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   // there are any queued messages belonging to it, they will be processed.
   void DidProcessFrame(uint32_t frame_token);
 
+#if defined(USE_NEVA_APPRUNTIME)
+  // A swap has been completed
+  void DidCompleteSwap();
+#endif
+
   // Indicate the frame input handler is now available.
   void SetFrameInputHandler(mojom::FrameInputHandler*);
   void SetWidget(mojo::PendingRemote<mojom::Widget> widget_remote);

@@ -23,6 +23,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/system/sys_info.h"
 #include "cc/base/switches_neva.h"
+#include "components/viz/common/switches.h"
 #include "content/browser/frame_host/render_frame_host_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/devtools_manager_delegate.h"
@@ -210,6 +211,7 @@ void AppRuntimeContentBrowserClient::AppendExtraCommandLineSwitches(
     base::CommandLine* command_line,
     int child_process_id) {
   command_line->AppendSwitch(service_manager::switches::kNoSandbox);
+  command_line->AppendSwitchASCII(switches::kUseVizFMPWithTimeout, "0");
 
   // Append v8 snapshot path if exists
   auto iter = v8_snapshot_pathes_.find(child_process_id);

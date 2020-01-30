@@ -181,6 +181,10 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
   bool IsRootFrameMissing() const;
   bool HasPendingSurfaces(const BeginFrameArgs& args) const;
 
+#if defined(USE_NEVA_APPRUNTIME)
+  void RenderProcessGone();
+#endif
+
  private:
   friend class DisplayTest;
   // PresentationGroupTiming stores rendering pipeline stage timings associated

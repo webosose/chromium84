@@ -32,6 +32,13 @@ class VIZ_SERVICE_EXPORT DisplayDamageTracker : public SurfaceObserver {
     virtual void OnDisplayDamaged(SurfaceId surface_id) = 0;
     virtual void OnRootFrameMissing(bool missing) = 0;
     virtual void OnPendingSurfacesChanged() = 0;
+#if defined(USE_NEVA_APPRUNTIME)
+    virtual void OnSurfaceActivated(SurfaceId surface_id,
+                                    bool is_first_contentful_paint,
+                                    bool did_reset_container_state,
+                                    bool seen_first_contentful_paint) {}
+    virtual void OnNewRootSurface() {}
+#endif
   };
 
   DisplayDamageTracker(SurfaceManager* surface_manager,
@@ -82,6 +89,12 @@ class VIZ_SERVICE_EXPORT DisplayDamageTracker : public SurfaceObserver {
   void OnSurfaceDestroyed(const SurfaceId& surface_id) override;
   void OnSurfaceDamageExpected(const SurfaceId& surface_id,
                                const BeginFrameArgs& args) override;
+#if defined(USE_NEVA_APPRUNTIME)
+  void OnSurfaceActivatedEx(const SurfaceId& surface_id,
+                            bool is_first_contentful_paint,
+                            bool did_reset_container_state,
+                            bool seen_first_contentful_paint) override;
+#endif
 
  protected:
   struct SurfaceBeginFrameState {

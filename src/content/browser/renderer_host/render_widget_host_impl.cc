@@ -3070,6 +3070,13 @@ void RenderWidgetHostImpl::DidProcessFrame(uint32_t frame_token) {
   frame_token_message_queue_->DidProcessFrame(frame_token);
 }
 
+#if defined(USE_NEVA_APPRUNTIME)
+void RenderWidgetHostImpl::DidCompleteSwap() {
+  if (delegate_)
+    delegate_->DidCompleteSwap();
+}
+#endif
+
 #if defined(OS_MACOSX)
 device::mojom::WakeLock* RenderWidgetHostImpl::GetWakeLock() {
   // Here is a lazy binding, and will not reconnect after connection error.

@@ -1687,6 +1687,15 @@ void WebContentsImpl::OnVerticalScrollDirectionChanged(
     observer.DidChangeVerticalScrollDirection(scroll_direction);
 }
 
+#if defined(USE_NEVA_APPRUNTIME)
+void WebContentsImpl::DidCompleteSwap() {
+  // This is notified in two stages. First stage is for WebView side, to
+  // acknowledge a frame has been swapped.
+  for (auto& observer : observers_)
+    observer.DidCompleteSwap();
+}
+#endif
+
 void WebContentsImpl::OnAudioStateChanged() {
   // This notification can come from any embedded contents or from this
   // WebContents' stream monitor. Aggregate these signals to get the actual

@@ -547,6 +547,13 @@ bool Display::IsRootFrameMissing() const {
   return damage_tracker_->root_frame_missing();
 }
 
+#if defined(USE_NEVA_APPRUNTIME)
+void Display::RenderProcessGone() {
+  if (scheduler_)
+    scheduler_->RenderProcessGone();
+}
+#endif
+
 bool Display::HasPendingSurfaces(const BeginFrameArgs& args) const {
   return damage_tracker_->HasPendingSurfaces(args);
 }

@@ -192,6 +192,9 @@ class InProcessContextFactory::PerCompositorData
   void SetSupportedRefreshRates(
       const std::vector<float>& refresh_rates) override {}
 #endif
+#if defined(USE_NEVA_APPRUNTIME)
+  void RenderProcessGone() override {}
+#endif
 
   void SetSurfaceHandle(gpu::SurfaceHandle surface_handle) {
     surface_handle_ = surface_handle;

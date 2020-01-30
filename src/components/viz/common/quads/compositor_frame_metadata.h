@@ -152,6 +152,12 @@ class VIZ_COMMON_EXPORT CompositorFrameMetadata {
   // applicable to frames of the root surface.
   gfx::OverlayTransform display_transform_hint = gfx::OVERLAY_TRANSFORM_NONE;
 
+#if defined(USE_NEVA_APPRUNTIME)
+  bool is_first_contentful_paint = false;
+  bool did_reset_container_state = false;
+  bool seen_first_contentful_paint = false;
+#endif
+
  private:
   CompositorFrameMetadata(const CompositorFrameMetadata& other);
   CompositorFrameMetadata operator=(const CompositorFrameMetadata&) = delete;

@@ -45,6 +45,10 @@ void DisplayDamageTracker::SetRootFrameMissing(bool missing) {
 void DisplayDamageTracker::SetNewRootSurface(const SurfaceId& root_surface_id) {
   TRACE_EVENT0("viz", "DisplayDamageTracker::SetNewRootSurface");
   root_surface_id_ = root_surface_id;
+
+  for (auto& observer : observers_)
+    observer.OnNewRootSurface();
+
   UpdateRootFrameMissing();
   SetRootSurfaceDamaged();
 }
@@ -142,6 +146,18 @@ bool DisplayDamageTracker::HasPendingSurfaces(
                        TRACE_EVENT_SCOPE_THREAD, "has_pending_surfaces", false);
 
   return false;
+}
+
+void DisplayDamageTracker::OnSurfaceActivatedEx(
+    const SurfaceId& surface_id,
+    bool is_first_contentful_paint,
+    bool did_reset_container_state,
+    bool seen_first_contentful_paint) {
+  for (auto& observer : observers_) {
+    observer.OnSurfaceActivated(surface_id, is_first_contentful_paint,
+                                did_reset_container_state,
+                                seen_first_contentful_paint);
+  }
 }
 
 void DisplayDamageTracker::OnSurfaceMarkedForDestruction(

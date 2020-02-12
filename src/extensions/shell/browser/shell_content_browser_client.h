@@ -104,6 +104,8 @@ class ShellContentBrowserClient : public content::ContentBrowserClient {
       std::string* partition_domain,
       std::string* partition_name,
       bool* in_memory) override;
+  void OnNetworkServiceCreated(
+      network::mojom::NetworkService* network_service) override;
   void ConfigureNetworkContextParams(
       content::BrowserContext* context,
       bool in_memory,

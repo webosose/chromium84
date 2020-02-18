@@ -218,7 +218,7 @@ std::unique_ptr<network::ResourceRequest> CreateResourceRequest(
 
   new_request->render_frame_id = frame_tree_node_id;
 #if defined(USE_NEVA_APPRUNTIME)
-  new_request->process_id = network::ResourceRequest::kBrowserProcessId;
+  new_request->process_id = network::mojom::kBrowserProcessId;
 #endif
 
   new_request->request_initiator =
@@ -1436,6 +1436,7 @@ NavigationURLLoaderImpl::NavigationURLLoaderImpl(
 
   std::unique_ptr<network::mojom::URLLoaderFactory> file_url_loader_factory =
       std::make_unique<FileURLLoaderFactory>(
+          network::mojom::kBrowserProcessId,
           partition->browser_context()->GetPath(),
           partition->browser_context()->GetSharedCorsOriginAccessList(),
           // USER_VISIBLE because loaded file resources may affect the UI.

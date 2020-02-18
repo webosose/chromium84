@@ -5831,7 +5831,7 @@ void RenderFrameHostImpl::CommitNavigation(
           common_params->initiator_origin->scheme() == url::kFileScheme)) &&
         !navigation_to_web_bundle) {
       auto file_factory = std::make_unique<FileURLLoaderFactory>(
-          browser_context->GetPath(),
+          GetProcess()->GetID(), browser_context->GetPath(),
           browser_context->GetSharedCorsOriginAccessList(),
           // A user-initiated navigation is USER_BLOCKING.
           base::TaskPriority::USER_BLOCKING);

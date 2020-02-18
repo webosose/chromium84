@@ -156,6 +156,7 @@ class FileURLDirectoryLoader
   static void CreateAndStart(
       const base::FilePath& profile_path,
       const network::ResourceRequest& request,
+      uint32_t process_id,
       network::mojom::FetchResponseType response_type,
       mojo::PendingReceiver<network::mojom::URLLoader> loader,
       mojo::PendingRemote<network::mojom::URLLoaderClient> client_remote,
@@ -165,7 +166,7 @@ class FileURLDirectoryLoader
     // bindings are alive - essentially until either the client gives up or all
     // file data has been sent to it.
     auto* file_url_loader = new FileURLDirectoryLoader;
-    file_url_loader->Start(profile_path, request, response_type,
+    file_url_loader->Start(profile_path, request, process_id, response_type,
                            std::move(loader), std::move(client_remote),
                            std::move(observer), std::move(response_headers));
   }
@@ -187,6 +188,7 @@ class FileURLDirectoryLoader
 
   void Start(const base::FilePath& profile_path,
              const network::ResourceRequest& request,
+             uint32_t process_id,
              network::mojom::FetchResponseType response_type,
              mojo::PendingReceiver<network::mojom::URLLoader> loader,
              mojo::PendingRemote<network::mojom::URLLoaderClient> client_remote,
@@ -370,6 +372,7 @@ class FileURLLoader : public network::mojom::URLLoader {
   static void CreateAndStart(
       const base::FilePath& profile_path,
       const network::ResourceRequest& request,
+      uint32_t process_id,
       network::mojom::FetchResponseType response_type,
       mojo::PendingReceiver<network::mojom::URLLoader> loader,
       mojo::PendingRemote<network::mojom::URLLoaderClient> client_remote,
@@ -382,7 +385,7 @@ class FileURLLoader : public network::mojom::URLLoader {
     // bindings are alive - essentially until either the client gives up or all
     // file data has been sent to it.
     auto* file_url_loader = new FileURLLoader;
-    file_url_loader->Start(profile_path, request, response_type,
+    file_url_loader->Start(profile_path, request, process_id, response_type,
                            std::move(loader), std::move(client_remote),
                            directory_loading_policy, file_access_policy,
                            link_following_policy, std::move(observer),
@@ -401,13 +404,15 @@ class FileURLLoader : public network::mojom::URLLoader {
     if (redirect_data->is_directory) {
       FileURLDirectoryLoader::CreateAndStart(
           redirect_data->profile_path, redirect_data->request,
-          redirect_data->response_type, receiver_.Unbind(), client_.Unbind(),
+          redirect_data->process_id, redirect_data->response_type,
+          receiver_.Unbind(), client_.Unbind(),
           std::move(redirect_data->observer),
           std::move(redirect_data->extra_response_headers));
     } else {
       FileURLLoader::CreateAndStart(
           redirect_data->profile_path, redirect_data->request,
-          redirect_data->response_type, receiver_.Unbind(), client_.Unbind(),
+          redirect_data->process_id, redirect_data->response_type,
+          receiver_.Unbind(), client_.Unbind(),
           redirect_data->directory_loading_policy,
           redirect_data->file_access_policy,
           redirect_data->link_following_policy,
@@ -429,6 +434,7 @@ class FileURLLoader : public network::mojom::URLLoader {
     bool is_directory = false;
     base::FilePath profile_path;
     network::ResourceRequest request;
+    uint32_t process_id;
     network::mojom::FetchResponseType response_type;
     mojo::PendingReceiver<network::mojom::URLLoader> loader;
     DirectoryLoadingPolicy directory_loading_policy =
@@ -445,6 +451,7 @@ class FileURLLoader : public network::mojom::URLLoader {
 
   void Start(const base::FilePath& profile_path,
              const network::ResourceRequest& request,
+             uint32_t process_id,
              network::mojom::FetchResponseType response_type,
              mojo::PendingReceiver<network::mojom::URLLoader> loader,
              mojo::PendingRemote<network::mojom::URLLoaderClient> client_remote,
@@ -510,6 +517,7 @@ class FileURLLoader : public network::mojom::URLLoader {
       redirect_data_->is_directory = true;
       redirect_data_->profile_path = std::move(profile_path);
       redirect_data_->request = request;
+      redirect_data_->process_id = process_id;
       redirect_data_->directory_loading_policy = directory_loading_policy;
       redirect_data_->file_access_policy = file_access_policy;
       redirect_data_->link_following_policy = link_following_policy;
@@ -792,10 +800,12 @@ const url::Origin& GetCorsOrigin(const network::ResourceRequest& request) {
 }  // namespace
 
 FileURLLoaderFactory::FileURLLoaderFactory(
+    uint32_t process_id,
     const base::FilePath& profile_path,
     scoped_refptr<SharedCorsOriginAccessList> shared_cors_origin_access_list,
     base::TaskPriority task_priority)
-    : profile_path_(profile_path),
+    : process_id_(process_id),
+      profile_path_(profile_path),
       shared_cors_origin_access_list_(
           std::move(shared_cors_origin_access_list)),
       task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
@@ -860,6 +870,11 @@ void FileURLLoaderFactory::CreateLoaderAndStartInternal(
     mojo::PendingRemote<network::mojom::URLLoaderClient> client) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+  uint32_t process_id =
+      (request.process_id == network::mojom::kInvalidProcessId)
+          ? process_id_
+          : request.process_id;
+
   if (response_type == network::mojom::FetchResponseType::kCors) {
     // FileURLLoader doesn't support CORS and it's not covered by CorsURLLoader,
     // so we need to reject requests that need CORS manually.
@@ -878,18 +893,29 @@ void FileURLLoaderFactory::CreateLoaderAndStartInternal(
     return;
   }
 
+#if defined(USE_NEVA_APPRUNTIME)
+  if (!GetContentClient()->browser()->IsFileAccessAllowedForRequest(
+          file_path, request, process_id)) {
+    mojo::Remote<network::mojom::URLLoaderClient>(std::move(client))
+        ->OnComplete(
+            network::URLLoaderCompletionStatus(net::ERR_ACCESS_DENIED));
+    return;
+  }
+#endif
+
   if (file_path.EndsWithSeparator() && file_path.IsAbsolute()) {
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&FileURLDirectoryLoader::CreateAndStart, profile_path_,
-                       request, response_type, std::move(loader),
+                       request, process_id, response_type, std::move(loader),
                        std::move(client),
                        std::unique_ptr<FileURLLoaderObserver>(), nullptr));
   } else {
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&FileURLLoader::CreateAndStart, profile_path_, request,
-                       response_type, std::move(loader), std::move(client),
+                       process_id, response_type, std::move(loader),
+                       std::move(client),
                        DirectoryLoadingPolicy::kRespondWithListing,
                        FileAccessPolicy::kRestricted,
                        LinkFollowingPolicy::kFollow,
@@ -922,6 +948,7 @@ void CreateFileURLLoaderBypassingSecurityChecks(
       FROM_HERE,
       base::BindOnce(
           &FileURLLoader::CreateAndStart, base::FilePath(), request,
+          network::mojom::kInvalidProcessId,
           network::mojom::FetchResponseType::kBasic, std::move(loader),
           std::move(client),
           allow_directory_listing ? DirectoryLoadingPolicy::kRespondWithListing
@@ -931,12 +958,13 @@ void CreateFileURLLoaderBypassingSecurityChecks(
 }
 
 std::unique_ptr<network::mojom::URLLoaderFactory> CreateFileURLLoaderFactory(
+    uint32_t process_id,
     const base::FilePath& profile_path,
     scoped_refptr<SharedCorsOriginAccessList> shared_cors_origin_access_list) {
   // TODO(crbug.com/924416): Re-evaluate TaskPriority: Should the caller provide
   // it?
   return std::make_unique<content::FileURLLoaderFactory>(
-      profile_path, shared_cors_origin_access_list,
+      process_id, profile_path, shared_cors_origin_access_list,
       base::TaskPriority::USER_VISIBLE);
 }
 

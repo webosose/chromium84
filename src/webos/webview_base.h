@@ -86,6 +86,8 @@ class WEBOS_EXPORT WebViewBase
     std::string bypass_list;
   };
 
+  static const std::string kSecurityOriginPostfix;
+
   static void SetFileAccessBlocked(bool blocked);
 
   WebViewBase(bool alt_storage_path = false,

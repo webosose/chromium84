@@ -33,7 +33,6 @@ namespace neva_app_runtime {
 class AppRuntimeBrowserMainExtraParts;
 class AppRuntimeFileAccessDelegate;
 class AppRuntimeQuotaPermissionDelegate;
-class URLRequestContextFactory;
 struct ProxySettings;
 
 class AppRuntimeContentBrowserClient : public content::ContentBrowserClient {
@@ -132,10 +131,7 @@ class AppRuntimeContentBrowserClient : public content::ContentBrowserClient {
                                   const std::string& value);
 
  private:
-  class MainURLRequestContextGetter;
-
   AppRuntimeBrowserMainExtraParts* browser_extra_parts_ = nullptr;
-  std::unique_ptr<URLRequestContextFactory> url_request_context_factory_;
   AppRuntimeBrowserMainParts* main_parts_ = nullptr;
 
   AppRuntimeQuotaPermissionDelegate* quota_permission_delegate_ = nullptr;

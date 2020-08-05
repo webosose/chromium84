@@ -48,6 +48,7 @@ BrowsingDataRemover::BrowsingDataRemover(
       waiting_for_clear_cache_(false),
       waiting_for_clear_code_cache_(false),
       waiting_for_clear_storage_partition_data_(false),
+      waiting_for_clear_storage_partition_domain_cookies_(false),
       weak_ptr_factory_(this) {}
 
 BrowsingDataRemover::~BrowsingDataRemover() {}
@@ -162,6 +163,29 @@ void BrowsingDataRemover::Remove(const TimeRange& time_range,
         delete_begin, delete_end,
         base::Bind(&BrowsingDataRemover::OnClearedStoragePartitionData,
                    weak_ptr_factory_.GetWeakPtr()));
+    if (storage_partition_remove_mask &
+            content::StoragePartition::REMOVE_DATA_MASK_COOKIES &&
+        !origin.host().empty()) {
+      waiting_for_clear_storage_partition_domain_cookies_ = true;
+
+      const uint32_t storage_partition_domain_remove_mask =
+          content::StoragePartition::REMOVE_DATA_MASK_COOKIES;
+      const uint32_t quota_storage_domain_remove_mask = 0;
+
+      network::mojom::CookieDeletionFilterPtr domain_deletion_filter =
+          network::mojom::CookieDeletionFilter::New();
+      domain_deletion_filter->including_domains = std::vector<std::string>();
+      domain_deletion_filter->including_domains->push_back(origin.host());
+
+      storage_partition->ClearData(
+          storage_partition_domain_remove_mask,
+          quota_storage_domain_remove_mask,
+          content::StoragePartition::OriginMatcherFunction(),
+          std::move(domain_deletion_filter), false, delete_begin, delete_end,
+          base::Bind(
+              &BrowsingDataRemover::OnClearedStoragePartitionDomainCookies,
+              weak_ptr_factory_.GetWeakPtr()));
+    }
   }
 }
 
@@ -196,10 +220,17 @@ void BrowsingDataRemover::OnClearedCodeCache() {
   NotifyAndDeleteIfDone();
 }
 
+void BrowsingDataRemover::OnClearedStoragePartitionDomainCookies() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  waiting_for_clear_storage_partition_domain_cookies_ = false;
+  NotifyAndDeleteIfDone();
+}
+
 bool BrowsingDataRemover::AllDone() {
   return !waiting_for_clear_channel_ids_ && !waiting_for_clear_cache_ &&
          !waiting_for_clear_code_cache_ &&
-         !waiting_for_clear_storage_partition_data_;
+         !waiting_for_clear_storage_partition_data_ &&
+         !waiting_for_clear_storage_partition_domain_cookies_;
 }
 
 }  // namespace neva_app_runtime

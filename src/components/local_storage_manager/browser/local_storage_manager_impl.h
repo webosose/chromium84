@@ -54,7 +54,8 @@ class LocalStorageManagerImpl final : public LocalStorageManager {
   void OnInitializeFailed();
   void OnInitializeSucceeded();
   bool IsInitialized();
-  void StartDeleteOriginData(const GURL& origin);
+  bool IsHTTPOrHTTPSOriginUniqueForHost(const std::string& host);
+  void StartDeleteOriginData(const GURL& origin, bool delete_cookies = true);
 
   enum class AppLinkVerifyResult {
     kExist,

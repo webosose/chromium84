@@ -31,8 +31,6 @@ WebOSDataDeleter::WebOSDataDeleter()
       mask_(static_cast<
             neva_app_runtime::BrowsingDataRemover::RemoveBrowsingDataMask>(
           neva_app_runtime::BrowsingDataRemover::RemoveBrowsingDataMask::
-              REMOVE_COOKIES |
-          neva_app_runtime::BrowsingDataRemover::RemoveBrowsingDataMask::
               REMOVE_LOCAL_STORAGE |
           neva_app_runtime::BrowsingDataRemover::RemoveBrowsingDataMask::
               REMOVE_INDEXEDDB |
@@ -49,30 +47,22 @@ WebOSDataDeleter::WebOSDataDeleter()
           neva_app_runtime::BrowsingDataRemover::RemoveBrowsingDataMask::
               REMOVE_MEDIA_LICENSES)) {}
 
-void WebOSDataDeleter::StartDeleting(const Origins& origins,
-                                     CompletionCallback callback) {
-  if (origins.empty()) {
-    base::PostTask(FROM_HERE, {content::BrowserThread::UI},
-                   std::move(callback));
-    return;
-  }
+void WebOSDataDeleter::StartDeleting(
+    const GURL& origin,
+    bool delete_cookies,
+    content::DataDeleter::CompletionCallback callback) {
   auto profile = static_cast<neva_app_runtime::WebViewProfile*>(
       neva_app_runtime::WebViewProfile::GetDefaultProfile());
-  scoped_refptr<content::DataDeleter::DeletionContext> context =
-      new content::DataDeleter::DeletionContext(origins, callback);
-  for (auto& origin : origins) {
-    profile->RemoveBrowsingData(
-        mask_, origin,
-        base::BindOnce(&WebOSDataDeleter::OnDeleteCompleted,
-                       weak_factory_.GetWeakPtr(), origin, nullptr));
+  int mask_value = static_cast<int>(mask_);
+  if (delete_cookies) {
+    mask_value |= neva_app_runtime::BrowsingDataRemover::
+        RemoveBrowsingDataMask::REMOVE_COOKIES;
   }
-}
-
-void WebOSDataDeleter::StartDeleting(const GURL& origin,
-                                     CompletionCallback callback) {
-  auto profile = static_cast<neva_app_runtime::WebViewProfile*>(
-      neva_app_runtime::WebViewProfile::GetDefaultProfile());
-  profile->RemoveBrowsingData(mask_, origin, std::move(callback));
+  neva_app_runtime::BrowsingDataRemover::RemoveBrowsingDataMask mask =
+      static_cast<
+          neva_app_runtime::BrowsingDataRemover::RemoveBrowsingDataMask>(
+          mask_value);
+  profile->RemoveBrowsingData(mask, origin, std::move(callback));
 }
 
 void WebOSDataDeleter::OnDeleteCompleted(

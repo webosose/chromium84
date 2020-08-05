@@ -125,6 +125,11 @@ class BrowsingDataRemover {
   // Invokes NotifyAndDeleteIfDone.
   void OnClearedStoragePartitionData();
 
+  // Callback on UI thread when the storage partition domain cookies are
+  // cleared.
+  // Invokes NotifyAndDeleteIfDone.
+  void OnClearedStoragePartitionDomainCookies();
+
   // Callback for when the code cache has been deleted. Invokes
   // NotifyAndDeleteIfDone.
   void OnClearedCodeCache();
@@ -137,6 +142,7 @@ class BrowsingDataRemover {
   bool waiting_for_clear_cache_;
   bool waiting_for_clear_code_cache_;
   bool waiting_for_clear_storage_partition_data_;
+  bool waiting_for_clear_storage_partition_domain_cookies_;
   CompleteCallback callback_;
 
   base::WeakPtrFactory<BrowsingDataRemover> weak_ptr_factory_;

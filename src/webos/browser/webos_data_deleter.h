@@ -33,11 +33,11 @@ class WebOSDataDeleter final : public content::DataDeleter {
   WebOSDataDeleter();
 
   typedef std::set<GURL> Origins;
-  using CompletionCallback = base::OnceCallback<void()>;
 
-  void StartDeleting(const Origins& origins,
-                     CompletionCallback callback) override;
-  void StartDeleting(const GURL& origin, CompletionCallback callback) override;
+  void StartDeleting(
+      const GURL& origin,
+      bool delete_cookies,
+      content::DataDeleter::CompletionCallback callback) override;
 
   void OnDeleteCompleted(
       const GURL& origin,

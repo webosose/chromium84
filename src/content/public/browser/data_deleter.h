@@ -33,9 +33,8 @@ class DataDeleter {
   typedef std::set<GURL> Origins;
   using CompletionCallback = base::OnceCallback<void()>;
 
-  virtual void StartDeleting(const Origins& origins,
-                             CompletionCallback callback) = 0;
   virtual void StartDeleting(const GURL& origin,
+                             bool delete_cookies,
                              CompletionCallback callback) = 0;
 
   struct DeletionContext : public base::RefCounted<DeletionContext> {

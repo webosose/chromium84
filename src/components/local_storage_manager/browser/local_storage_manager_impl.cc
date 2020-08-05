@@ -81,24 +81,20 @@ void LocalStorageManagerImpl::OnAppRemoved(const std::string& app_id) {
     AppsSet::iterator it_app = apps.find(app_id);
     if (it_app != apps.end()) {
       apps.erase(it_app);
+      GURL origin_to_clear = origin.first;
+      VLOG(1) << "Origin=" << origin_to_clear << " to be cleared";
       if (apps.size() == 0) {
-        VLOG(1) << "Origin=" << origin.first << " to be cleared";
-        origins_to_clear.insert(origin.first);
+        origins_to_clear.insert(origin_to_clear);
         store_->DeleteOrigin(
             origin.first,
             base::Bind(&LocalStorageManagerImpl::OnStoreModified, this,
                        StoreModificationOperation::kDeleteOrigin));
       }
+      StartDeleteOriginData(origin_to_clear);
     }
   }
-  if (!origins_to_clear.empty()) {
-    VLOG(1) << "Deleting origins begin";
-    if (GetDataDeleter())
-      GetDataDeleter()->StartDeleting(origins_to_clear,
-                                      base::BindOnce(base::DoNothing::Once()));
-    for (auto origin : origins_to_clear)
-      origins_.erase(origin);
-  }
+  for (auto origin : origins_to_clear)
+    origins_.erase(origin);
   store_->DeleteApplication(
       app_id, base::Bind(&LocalStorageManagerImpl::OnStoreModified, this,
                          StoreModificationOperation::kDeleteApplication));
@@ -188,7 +184,11 @@ void LocalStorageManagerImpl::OnAccessOrigin(
     }
     if (app_installed) {
       for (auto& origin : origins_to_delete) {
-        StartDeleteOriginData(origin);
+        bool delete_cookies = origin.SchemeIsHTTPOrHTTPS();
+        if (delete_cookies && origin.has_host()) {
+          delete_cookies = IsHTTPOrHTTPSOriginUniqueForHost(origin.host());
+        }
+        StartDeleteOriginData(origin, delete_cookies);
       }
       origins_to_wait.insert(std::begin(origins_to_delete),
                              std::end(origins_to_delete));
@@ -301,8 +301,25 @@ bool LocalStorageManagerImpl::IsInitialized() {
   return init_status_ == InitializationStatus::kSucceeded;
 }
 
-void LocalStorageManagerImpl::StartDeleteOriginData(const GURL& origin) {
-  VLOG(1) << "Start deleting origin=" << origin;
+bool LocalStorageManagerImpl::IsHTTPOrHTTPSOriginUniqueForHost(
+    const std::string& host) {
+  int host_origin_count = 0;
+  for (auto& origin : origins_) {
+    if (origin.first.has_host() && origin.first.SchemeIsHTTPOrHTTPS() &&
+        origin.first.host() == host) {
+      ++host_origin_count;
+      if (host_origin_count > 1) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+void LocalStorageManagerImpl::StartDeleteOriginData(const GURL& origin,
+                                                    bool delete_cookies) {
+  VLOG(1) << "Start deleting origin=" << origin
+          << " delete_cookies=" << delete_cookies;
 
   OriginToAppsMap::iterator iter = origins_.find(origin);
   base::OnceClosure callback;
@@ -315,7 +332,8 @@ void LocalStorageManagerImpl::StartDeleteOriginData(const GURL& origin) {
   }
 
   if (GetDataDeleter())
-    GetDataDeleter()->StartDeleting(origin, std::move(callback));
+    GetDataDeleter()->StartDeleting(origin, delete_cookies,
+                                    std::move(callback));
 }
 
 LocalStorageManagerImpl::AppLinkVerifyResult

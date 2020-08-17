@@ -134,6 +134,14 @@ void MediaSessionController::OnExitPictureInPicture(int player_id) {
       id_.render_frame_host->GetRoutingID(), id_.delegate_id));
 }
 
+#if defined(USE_NEVA_MEDIA)
+void MediaSessionController::OnMuted(int player_id, bool mute) {
+  DCHECK_EQ(player_id_, player_id);
+  id_.render_frame_host->Send(new MediaPlayerDelegateMsg_Muted(
+      id_.render_frame_host->GetRoutingID(), id_.delegate_id, mute));
+}
+#endif  // defined(USE_NEVA_MEDIA)
+
 RenderFrameHost* MediaSessionController::render_frame_host() const {
   return id_.render_frame_host;
 }
@@ -203,5 +211,12 @@ bool MediaSessionController::HasVideo(int player_id) const {
   DCHECK_EQ(player_id_, player_id);
   return has_video_ && has_audio_;
 }
+
+#if defined(USE_NEVA_MEDIA)
+void MediaSessionController::OnMediaMutedStatusChanged(bool muted) {
+  if (media_session_->IsActive())
+    media_session_->OnMediaMutedStatusChanged(muted);
+}
+#endif  // defined(USE_NEVA_MEDIA)
 
 }  // namespace content

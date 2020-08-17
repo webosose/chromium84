@@ -45,6 +45,7 @@ class COMPONENT_EXPORT(SYSTEM_MEDIA_CONTROLS) SystemMediaControlsWebOS
   void UpdateDisplay() override {}
   void SetMediaSessionId(
       const base::Optional<base::UnguessableToken>& session_id) override;
+  void SetMuteStatus(bool muted) override;
 
  private:
   enum class MediaKeyEvent {
@@ -53,6 +54,8 @@ class COMPONENT_EXPORT(SYSTEM_MEDIA_CONTROLS) SystemMediaControlsWebOS
     kPause,
     kNext,
     kPrevious,
+    kMute,
+    kUnmute,
   };
 
   enum class ServiceReadyStatus {

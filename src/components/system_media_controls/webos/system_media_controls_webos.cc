@@ -57,10 +57,16 @@ const char kMediaPlayStatusStopped[] = "PLAYSTATE_STOPPED";
 const char kMediaPlayStatusPaused[] = "PLAYSTATE_PAUSED";
 const char kMediaPlayStatusPlaying[] = "PLAYSTATE_PLAYING";
 
+const char kMediaMuteStatus[] = "muteStatus";
+const char kMediaMuteStatusMuted[] = "MUTE";
+const char kMediaMuteStatusUnmuted[] = "UNMUTE";
+
 const char kPlayEvent[] = "play";
 const char kPauseEvent[] = "pause";
 const char kNextEvent[] = "next";
 const char kPreviousEvent[] = "previous";
+const char kMuteEvent[] = "mute";
+const char kUnmuteEvent[] = "unmute";
 
 const char kRegisterMediaSession[] = "registerMediaSession";
 const char kUnregisterMediaSession[] = "unregisterMediaSession";
@@ -68,6 +74,7 @@ const char kActivateMediaSession[] = "activateMediaSession";
 const char kDeactivateMediaSession[] = "deactivateMediaSession";
 const char kSetMediaMetaData[] = "setMediaMetaData";
 const char kSetMediaPlayStatus[] = "setMediaPlayStatus";
+const char kSetMediaMuteStatus[] = "setMediaMuteStatus";
 
 }  // namespace
 
@@ -176,6 +183,33 @@ void SystemMediaControlsWebOS::SetMediaSessionId(
   }
 
   session_id_ = session_id->ToString();
+}
+
+void SystemMediaControlsWebOS::SetMuteStatus(bool muted) {
+  if (session_id_.empty()) {
+    LOG(ERROR) << __func__ << " No active session.";
+    return;
+  }
+
+  base::DictionaryValue mutestatus_root;
+  mutestatus_root.SetStringKey(kMediaId, session_id_);
+  mutestatus_root.SetStringKey(kMediaMuteStatus,
+      muted ? kMediaMuteStatusMuted : kMediaMuteStatusUnmuted);
+
+  std::string mutestatus_payload;
+  if (!base::JSONWriter::Write(mutestatus_root, &mutestatus_payload)) {
+    LOG(ERROR) << __func__ << " Failed to write mute status payload";
+    return;
+  }
+
+  VLOG(1) << __func__ << " mutestatus_payload: " << mutestatus_payload;
+  luna_service_client_->CallAsync(
+      base::LunaServiceClient::GetServiceURI(
+          base::LunaServiceClient::URIType::MEDIACONTROLLER,
+          kSetMediaMuteStatus),
+      mutestatus_payload,
+      BIND_TO_CURRENT_LOOP(
+          &SystemMediaControlsWebOS::CheckReplyStatusMessage));
 }
 
 bool SystemMediaControlsWebOS::RegisterMediaSession(
@@ -409,7 +443,10 @@ void SystemMediaControlsWebOS::HandleMediaKeyEventInternal(
       {kPlayEvent, SystemMediaControlsWebOS::MediaKeyEvent::kPlay},
       {kPauseEvent, SystemMediaControlsWebOS::MediaKeyEvent::kPause},
       {kNextEvent, SystemMediaControlsWebOS::MediaKeyEvent::kNext},
-      {kPreviousEvent, SystemMediaControlsWebOS::MediaKeyEvent::kPrevious}};
+      {kPreviousEvent, SystemMediaControlsWebOS::MediaKeyEvent::kPrevious},
+      {kMuteEvent, SystemMediaControlsWebOS::MediaKeyEvent::kMute},
+      {kUnmuteEvent, SystemMediaControlsWebOS::MediaKeyEvent::kUnmute}
+  };
 
   auto get_event_type = [&](const std::string& key) {
     std::map<std::string, MediaKeyEvent>::iterator it;
@@ -433,6 +470,12 @@ void SystemMediaControlsWebOS::HandleMediaKeyEventInternal(
         break;
       case SystemMediaControlsWebOS::MediaKeyEvent::kPrevious:
         obs.OnPrevious();
+        break;
+      case SystemMediaControlsWebOS::MediaKeyEvent::kMute:
+        obs.OnMuteStateChanged(true);
+        break;
+      case SystemMediaControlsWebOS::MediaKeyEvent::kUnmute:
+        obs.OnMuteStateChanged(false);
         break;
       default:
         NOTREACHED() << " key_event: " << key_event << " Not Handled !!!";

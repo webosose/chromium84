@@ -77,6 +77,11 @@ class CONTENT_EXPORT MediaSessionControllersManager {
   void OnPictureInPictureAvailabilityChanged(const MediaPlayerId& id,
                                              bool available);
 
+#if defined(USE_NEVA_MEDIA)
+  // Called when the media session was muted or unmuted.
+  void OnMediaMutedStatusChanged(const MediaPlayerId& id, bool muted);
+#endif
+
  private:
   friend class MediaSessionControllersManagerTest;
 

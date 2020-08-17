@@ -507,6 +507,7 @@ void WebMediaPlayerNeva::SetVolume(double volume) {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   FUNC_LOG(1);
   volume_ = volume;
+  delegate_->DidPlayerMutedStatusChange(delegate_id_, volume == 0.0);
   player_api_->SetVolume(volume_);
 }
 
@@ -1399,6 +1400,11 @@ void WebMediaPlayerNeva::OnPlay() {
 void WebMediaPlayerNeva::OnPause() {
   if (client_)
     client_->RequestPause();
+}
+
+void WebMediaPlayerNeva::OnMuted(bool muted) {
+  if (client_)
+    client_->RequestMuted(muted);
 }
 
 void WebMediaPlayerNeva::OnEnterPictureInPicture() {

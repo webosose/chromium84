@@ -83,6 +83,10 @@ interface MediaController {
 
   // Exit picture-in-picture.
   ExitPictureInPicture();
+
+  // Set the media session to mute/unmute based on |mute|
+  [EnableIf=use_neva_media]
+  SetMuted(bool mute);
 };
 
 // The observer for observing media controller events. This is different to a
@@ -113,6 +117,10 @@ interface MediaControllerObserver {
   // anytime the position state (playback rate, duration) is changed or the
   // media is seeked.
   MediaSessionPositionChanged(MediaPosition? position);
+
+  // Called when the Observed MediaSession has changed Muted status
+  [EnableIf=use_neva_media]
+  MediaSessionMutedStatusChanged(bool muted);
 };
 
 // The observer for observing when images associated with a media controller

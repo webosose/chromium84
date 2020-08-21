@@ -40,6 +40,7 @@
 #include "media/neva/media_player_neva_interface.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "services/media_session/public/cpp/media_position.h"
 #include "third_party/blink/public/platform/media/webmediaplayer_delegate.h"
 #include "third_party/blink/public/platform/web_audio_source_provider.h"
 #include "third_party/blink/public/platform/web_media_player.h"
@@ -347,6 +348,8 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerNeva
   void OnVideoWindowVisibilityChanged(bool visibility) override;
   // End of ui::mojom::VideoWindowClient
 
+  void OnMediaPositionUpdateTimerFired();
+
   bool EnsureVideoWindowCreated();
   void ContinuePlayerWithWindowId();
 
@@ -491,6 +494,10 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerNeva
 
   base::WeakPtr<WebMediaPlayerNeva> weak_this_;
   base::WeakPtrFactory<WebMediaPlayerNeva> weak_factory_{this};
+
+  base::RepeatingTimer media_position_update_timer_;
+  media_session::MediaPosition media_position_state_;
+  double playback_rate_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerNeva);
 };

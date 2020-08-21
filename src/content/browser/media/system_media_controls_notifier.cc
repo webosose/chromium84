@@ -138,6 +138,12 @@ void SystemMediaControlsNotifier::MediaSessionChanged(
   VLOG(1) << __func__ << " request_id: " << request_id->ToString();
   system_media_controls_->SetMediaSessionId(request_id);
 }
+
+void SystemMediaControlsNotifier::MediaSessionPositionChanged(
+    const base::Optional<media_session::MediaPosition>& position) {
+  VLOG(1) << __func__ << " position: " << position->ToString();
+  system_media_controls_->SetMediaPosition(position);
+}
 #endif  // defined(OS_WEBOS)
 
 #if defined(USE_NEVA_MEDIA)

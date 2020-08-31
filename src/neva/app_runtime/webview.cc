@@ -596,11 +596,6 @@ void WebView::SetSearchKeywordForCustomPlayer(bool enabled) {
   // TODO(jose.dapena): patch not ported
 }
 
-void WebView::SetSupportDolbyHDRContents(bool support) {
-  NOTIMPLEMENTED();
-  // TODO(jose.dapena): patch not ported
-}
-
 void WebView::SetUseUnlimitedMediaPolicy(bool enabled) {
   blink::mojom::RendererPreferences* renderer_prefs =
       web_contents_->GetMutableRendererPrefs();

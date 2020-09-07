@@ -699,6 +699,10 @@ void WebSettingsImpl::SetAllowLocalResourceLoad(bool allow) {
 bool WebSettingsImpl::GetAllowLocalResourceLoad() const {
   return settings_->GetAllowLocalResourceLoad();
 }
+
+void WebSettingsImpl::SetWebOSNativeScrollEnabled(bool enabled) {
+  settings_->SetWebOSNativeScrollEnabled(enabled);
+}
 #endif
 
 void WebSettingsImpl::SetLowPriorityIframesThreshold(

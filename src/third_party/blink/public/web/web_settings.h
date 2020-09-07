@@ -282,6 +282,7 @@ class WebSettings {
   virtual void SetDisallowScrollbarsInMainFrame(bool) = 0;
   virtual void SetAllowLocalResourceLoad(bool) = 0;
   virtual bool GetAllowLocalResourceLoad() const = 0;
+  virtual void SetWebOSNativeScrollEnabled(bool) = 0;
 #endif
   virtual void SetLowPriorityIframesThreshold(WebEffectiveConnectionType) = 0;
   virtual void SetLazyLoadEnabled(bool) = 0;

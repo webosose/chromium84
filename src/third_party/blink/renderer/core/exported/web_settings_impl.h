@@ -203,6 +203,7 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetDisallowScrollbarsInMainFrame(bool) override;
   void SetAllowLocalResourceLoad(bool) override;
   bool GetAllowLocalResourceLoad() const override;
+  void SetWebOSNativeScrollEnabled(bool) override;
 #endif
   void SetLowPriorityIframesThreshold(WebEffectiveConnectionType) override;
 

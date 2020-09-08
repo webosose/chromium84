@@ -151,6 +151,8 @@ struct AudioDecoderConfig {
   mojo_base.mojom.TimeDelta seek_preroll;
   int32 codec_delay;
   EncryptionScheme encryption_scheme;
+  [EnableIf=use_neva_media]
+  bool is_dolby_atmos;
 };
 
 // This defines a mojo transport format for media::VideoDecoderConfig.

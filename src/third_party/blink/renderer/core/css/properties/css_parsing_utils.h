@@ -276,6 +276,8 @@ CSSValue* ConsumePositionLonghand(CSSParserTokenRange& range,
                                                              kValueRangeAll);
 }
 
+CSSValue* ConsumeCaretWidth(CSSParserTokenRange&, const CSSParserContext&);
+
 }  // namespace css_parsing_utils
 }  // namespace blink
 

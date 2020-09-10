@@ -26,6 +26,7 @@
 #include "content/browser/frame_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_view_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_view_aura.h"
+#include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/frame_messages.h"
 #include "content/common/renderer.mojom.h"
 #include "content/public/browser/browser_context.h"
@@ -148,6 +149,21 @@ WebView::WebView(int width, int height, WebViewProfile* profile)
   web_contents_->SyncRendererPrefs();
   web_preferences_.reset(
       new content::WebPreferences(rvh->GetWebkitPreferences()));
+
+  if (web_contents_) {
+    // This code ensures that renderer proccess will be created before the first
+    // neva_app_runtime::WebView API call which relies on fact that
+    // renderer process has been already created and initialized
+    if (!rvh->IsRenderViewLive()) {
+      content::WebContentsImpl* webcontents_impl =
+          static_cast<content::WebContentsImpl*>(web_contents_.get());
+      webcontents_impl->CreateRenderViewForRenderManager(
+          rvh, MSG_ROUTING_NONE, MSG_ROUTING_NONE,
+          base::UnguessableToken::Create(),
+          rvh->GetMainFrame()->GetDevToolsFrameToken(),
+          content::FrameReplicationState());
+    }
+  }
 }
 
 WebView::~WebView() {

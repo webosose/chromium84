@@ -16,7 +16,6 @@
 
 #include "neva/app_runtime/public/webview_base.h"
 
-#include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -36,25 +35,6 @@ WebViewBase::WebViewBase(int width, int height, WebViewProfile* profile)
     : webview_(new WebView(width, height, profile)) {
   webview_->SetDelegate(this);
   webview_->SetControllerDelegate(this);
-
-  // FIXME(neva): Need to revise it
-  // if (GetWebContents()) {
-  //   // The arcitecture of using WebContentsImpl is not good way and is not
-  //   what
-  //   // we want to do
-  //   // Need to change it
-  //   content::RenderViewHost* rvh = GetWebContents()->GetRenderViewHost();
-  //   if (!rvh->IsRenderViewLive()) {
-  //     // TODO(pikulik): should be revised
-  //     content::WebContentsImpl* webcontents_impl =
-  //         static_cast<content::WebContentsImpl*>(GetWebContents());
-  //     webcontents_impl->CreateRenderViewForRenderManager(
-  //         rvh, MSG_ROUTING_NONE, MSG_ROUTING_NONE,
-  //         rvh->GetMainFrame()->GetDevToolsFrameToken(),
-  //         content::FrameReplicationState());
-  //   }
-  //   GetWebContents()->SetInspectablePage(false);
-  // }
 }
 
 WebViewBase::~WebViewBase() {

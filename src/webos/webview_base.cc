@@ -18,9 +18,9 @@
 
 #include "base/task/post_task.h"
 #include "base/unguessable_token.h"
-#include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -32,6 +32,7 @@
 #include "neva/app_runtime/webview_profile.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
+#include "ui/events/keycodes/dom/dom_key.h"
 #include "webos/browser/webos_webview_renderer_state.h"
 #include "webos/common/webos_event.h"
 
@@ -99,25 +100,6 @@ void WebViewBase::Initialize(const std::string& app_id,
   SetV8SnapshotPath(v8_snapshot_path);
   SetV8ExtraFlags(v8_extra_flags);
   SetUseNativeScroll(use_native_scroll);
-
-  // FIXME(neva): Need to revise it
-  // if (GetWebContents()) {
-  //   // The arcitecture of using WebContentsImpl is not good way and is not
-  //   what
-  //   // we want to do
-  //   // Need to change it
-  //   content::RenderViewHost* rvh = GetWebContents()->GetRenderViewHost();
-  //   if (!rvh->IsRenderViewLive()) {
-  //     // TODO(pikulik): should be revised
-  //     content::WebContentsImpl* webcontents_impl =
-  //         static_cast<content::WebContentsImpl*>(GetWebContents());
-  //     webcontents_impl->CreateRenderViewForRenderManager(
-  //         rvh, MSG_ROUTING_NONE, MSG_ROUTING_NONE,
-  //         rvh->GetMainFrame()->GetDevToolsFrameToken(),
-  //         content::FrameReplicationState());
-  //   }
-  //   GetWebContents()->SetInspectablePage(false);
-  // }
 
   NOTIMPLEMENTED() << " native scrolls, allow mouse on/off event";
 }

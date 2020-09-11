@@ -465,7 +465,8 @@ void KeyboardEventManager::DefaultArrowEventHandler(
   if (!page)
     return;
 
-  if (IsSpatialNavigationEnabled(frame_) &&
+  if ((RuntimeEnabledFeatures::CSSNavigationEnabled() ||
+       IsSpatialNavigationEnabled(frame_)) &&
       !frame_->GetDocument()->InDesignMode()) {
     if (page->GetSpatialNavigationController().HandleArrowKeyboardEvent(
             event)) {

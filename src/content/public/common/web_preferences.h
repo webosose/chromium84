@@ -374,6 +374,11 @@ struct CONTENT_EXPORT WebPreferences {
   // forcing :focus-visible to match regardless of focus method).
   bool always_show_focus;
 
+  // CSS3 UI keyboard control properties (‘nav-index’, ‘nav-up’, ‘nav-down’,
+  // ‘nav-right’, ‘nav-left’) support.
+  // See https://www.w3.org/TR/2012/WD-css3-ui-20120117/#keyboard
+  bool css_navigation_enabled = false;
+
   // We try to keep the default values the same as the default values in
   // chrome, except for the cases where it would require lots of extra work for
   // the embedder to use the same default value.

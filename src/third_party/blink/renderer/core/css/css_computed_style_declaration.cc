@@ -146,6 +146,8 @@ const CSSPropertyID kComputedPropertyArray[] = {
     CSSPropertyID::kMaxWidth, CSSPropertyID::kMinBlockSize,
     CSSPropertyID::kMinHeight, CSSPropertyID::kMinInlineSize,
     CSSPropertyID::kMinWidth, CSSPropertyID::kMixBlendMode,
+    CSSPropertyID::kNavIndex, CSSPropertyID::kNavUp, CSSPropertyID::kNavDown,
+    CSSPropertyID::kNavLeft, CSSPropertyID::kNavRight,
     CSSPropertyID::kObjectFit, CSSPropertyID::kObjectPosition,
     CSSPropertyID::kOffsetAnchor, CSSPropertyID::kOffsetDistance,
     CSSPropertyID::kOffsetPath, CSSPropertyID::kOffsetPosition,

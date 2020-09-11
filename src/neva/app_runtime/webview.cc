@@ -632,7 +632,7 @@ void WebView::UpdatePreferencesAttributeForPrefs(
       preferences->supports_multiple_windows = enable;
       break;
     case Attribute::CSSNavigationEnabled:
-      NOTIMPLEMENTED() << "Attribute::CSSNavigationEnabled is not supported";
+      preferences->css_navigation_enabled = enable;
       break;
     case Attribute::AllowLocalResourceLoad:
       preferences->allow_local_resource_load = enable;

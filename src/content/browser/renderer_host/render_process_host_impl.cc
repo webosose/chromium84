@@ -3386,6 +3386,7 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
     switches::kEnableUseZoomForDSF,
     switches::kEnableViewport,
     switches::kEnableVtune,
+    switches::kEnableWatchdog,
     switches::kEnableWebGL2ComputeContext,
     switches::kEnableWebGLDraftExtensions,
     switches::kEnableWebGLImageChromium,
@@ -3440,6 +3441,8 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
     switches::kVideoThreads,
     switches::kVideoUnderflowThresholdMs,
     switches::kVModule,
+    switches::kWatchdogRendererTimeout,
+    switches::kWatchdogRendererPeriod,
     switches::kWebglAntialiasingMode,
     switches::kWebglMSAASampleCount,
     // Please keep these in alphabetical order. Compositor switches here

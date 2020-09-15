@@ -144,6 +144,7 @@ CONTENT_EXPORT extern const char kEnableUserMediaScreenCapturing[];
 CONTENT_EXPORT extern const char kEnableUseZoomForDSF[];
 CONTENT_EXPORT extern const char kEnableViewport[];
 CONTENT_EXPORT extern const char kEnableVtune[];
+CONTENT_EXPORT extern const char kEnableWatchdog[];
 CONTENT_EXPORT extern const char kEnableWebGL2ComputeContext[];
 CONTENT_EXPORT extern const char kEnableWebGLDraftExtensions[];
 CONTENT_EXPORT extern const char kEnableWebGLImageChromium[];
@@ -239,6 +240,10 @@ CONTENT_EXPORT extern const char kUtilitySubType[];
 CONTENT_EXPORT extern const char kV8CacheOptions[];
 CONTENT_EXPORT extern const char kValidateInputEventStream[];
 CONTENT_EXPORT extern const char kWaitForDebuggerChildren[];
+CONTENT_EXPORT extern const char kWatchdogBrowserPeriod[];
+CONTENT_EXPORT extern const char kWatchdogBrowserTimeout[];
+CONTENT_EXPORT extern const char kWatchdogRendererPeriod[];
+CONTENT_EXPORT extern const char kWatchdogRendererTimeout[];
 extern const char kWebglAntialiasingMode[];
 extern const char kWebglMSAASampleCount[];
 

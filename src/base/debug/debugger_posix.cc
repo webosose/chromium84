@@ -70,7 +70,9 @@
 namespace base {
 namespace debug {
 
-#if defined(OS_MACOSX) || defined(OS_BSD)
+#if defined(USE_SYSTEM_DEBUGGER_ABORT)
+void VerifyDebugger() {}
+#elif defined(OS_MACOSX) || defined(OS_BSD)
 
 // Based on Apple's recommended method as described in
 // http://developer.apple.com/qa/qa2004/qa1361.html

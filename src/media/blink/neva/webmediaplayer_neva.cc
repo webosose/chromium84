@@ -1409,4 +1409,13 @@ void WebMediaPlayerNeva::OnExitPictureInPicture() {
   NOTIMPLEMENTED_LOG_ONCE();
 }
 
+bool WebMediaPlayerNeva::Send(const std::string& message) {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  FUNC_LOG(1) << "message:  " <<  message;
+  if (message.empty())
+    return false;
+
+  return player_api_->Send(message);
+}
+
 }  // namespace media

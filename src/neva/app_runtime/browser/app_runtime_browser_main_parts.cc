@@ -266,8 +266,8 @@ void AppRuntimeBrowserMainParts::PreMainMessageLoopRun() {
 void AppRuntimeBrowserMainParts::ArmWatchdog(content::BrowserThread::ID thread,
                                              watchdog::Watchdog* watchdog) {
   watchdog->Arm();
-  if (!watchdog->GetWatchingThreadTid())
-    watchdog->SetWatchingThreadTid((pid_t)syscall(SYS_gettid));
+  if (!watchdog->HasThreadInfo())
+    watchdog->SetCurrentThreadInfo();
 
   base::PostDelayedTask(FROM_HERE, {thread},
                         base::Bind(&AppRuntimeBrowserMainParts::ArmWatchdog,

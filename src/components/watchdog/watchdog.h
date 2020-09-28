@@ -39,8 +39,11 @@ class Watchdog {
 
   void SetTimeout(int timeout) { timeout_ = timeout; }
 
-  void SetWatchingThreadTid(pid_t tid) { watching_tid_ = tid; }
-  pid_t GetWatchingThreadTid() { return watching_tid_; }
+  void SetCurrentThreadInfo();
+  bool HasThreadInfo() const;
+
+  pthread_t GetWatchingPthreadId() const { return watching_pthread_id_; }
+  pid_t GetWatchingThreadTid() const { return watching_thread_tid_; }
 
  private:
   class WatchdogThread : public base::Watchdog {
@@ -57,7 +60,9 @@ class Watchdog {
   std::unique_ptr<base::Watchdog> watchdog_thread_;
   int period_;
   int timeout_;
-  pid_t watching_tid_;
+
+  pthread_t watching_pthread_id_;
+  pid_t watching_thread_tid_;
 };
 
 }  // namespace watchdog

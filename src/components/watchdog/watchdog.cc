@@ -16,7 +16,10 @@
 
 #include "components/watchdog/watchdog.h"
 
+#include <execinfo.h>
 #include <signal.h>
+#include <stdio.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 #include "base/logging.h"
@@ -27,10 +30,39 @@ static constexpr int kDefaultWatchdogTimeout = 100;
 static constexpr int kDefaultWatchdogPeriod = 20;
 static constexpr int kWatchdogCleanupPeriod = 10;
 
+__attribute__((noinline)) static void _callstack_signal_handler(int signal,
+                                                                siginfo_t* info,
+                                                                void* secret) {
+  if (signal != SIGUSR2)
+    return;
+
+  LOG(ERROR) << "[Watchdog_SigHandler] Stuck handling at thread : "
+             << syscall(SYS_gettid);
+
+  constexpr int kMaxFrames = 128;
+  void* callstack[kMaxFrames];
+  constexpr size_t kBufferSize = 1024;
+  char buffer[kBufferSize];
+  int nFrames = backtrace(callstack, kMaxFrames);
+  char** symbols = backtrace_symbols(callstack, nFrames);
+
+  for (int i = 1; i < nFrames; i++) {
+    snprintf(buffer, kBufferSize, "%s", symbols[i]);
+    LOG(ERROR) << "[Watchdog_Callstack] " << buffer;
+  }
+
+  free(symbols);
+  if (nFrames == kMaxFrames)
+    LOG(ERROR) << "[Watchdog_Callstack] [truncated]";
+
+  kill(getpid(), SIGABRT);
+}
+
 Watchdog::Watchdog()
     : period_(kDefaultWatchdogPeriod),
       timeout_(kDefaultWatchdogTimeout),
-      watching_tid_(0) {}
+      watching_pthread_id_(0),
+      watching_thread_tid_(0) {}
 
 Watchdog::~Watchdog() {
   if (watchdog_thread_) {
@@ -53,11 +85,29 @@ Watchdog::WatchdogThread::WatchdogThread(const base::TimeDelta& duration,
     : base::Watchdog(duration, "Watchdog", true), watchdog_(watchdog) {}
 
 void Watchdog::WatchdogThread::Alarm() {
-  // kill process
   LOG(ERROR) << "[WatchdogThread] Detected stuck thread "
              << watchdog_->GetWatchingThreadTid() << " in process " << getpid()
              << "! Killing process with SIGABRT";
-  kill(getpid(), SIGABRT);
+
+  struct sigaction sa;
+  sigfillset(&sa.sa_mask);
+  sa.sa_flags = SA_SIGINFO;
+  sa.sa_sigaction = _callstack_signal_handler;
+  sigaction(SIGUSR2, &sa, NULL);
+
+  if (pthread_kill(watchdog_->GetWatchingPthreadId(), SIGUSR2) != 0) {
+    LOG(ERROR) << "[WatchdogThread] "
+               << "Cannot send signal!! Process cannot be recovered!!";
+  }
+}
+
+void Watchdog::SetCurrentThreadInfo() {
+  watching_pthread_id_ = pthread_self();
+  watching_thread_tid_ = syscall(SYS_gettid);
+}
+
+bool Watchdog::HasThreadInfo() const {
+  return watching_pthread_id_ && watching_thread_tid_;
 }
 
 }  // namespace watchdog

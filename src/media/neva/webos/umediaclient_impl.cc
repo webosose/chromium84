@@ -72,6 +72,7 @@ UMediaClientImpl::UMediaClientImpl(
     const std::string& app_id)
     : event_listener_(std::move(event_listener)),
       main_task_runner_(main_task_runner),
+      luna_service_client_(app_id),
       app_id_(app_id),
       system_media_manager_(
           SystemMediaManager::Create(AsWeakPtr(), main_task_runner)) {
@@ -238,6 +239,9 @@ void UMediaClientImpl::Suspend(SuspendReason reason) {
   FUNC_LOG(1) << " - MediaId: " << MediaId();
 
   is_suspended_ = true;
+#if defined(USE_GST_MEDIA)
+  force_unload = true;
+#endif
 
   if (force_unload) {
     released_media_resource_ = true;
@@ -292,6 +296,10 @@ void UMediaClientImpl::SetPreload(Preload preload) {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   FUNC_LOG(1) << " app_id_=" << app_id_
               << " preload=" << WebOSMediaClientPreloadToString(preload);
+#if defined(USE_GST_MEDIA)
+  // g-media-pipeline doesn't support preload
+  preload = WebOSMediaClient::Preload::kPreloadNone;
+#endif
 
   if (use_pipeline_preload_ && !(is_loading() || is_loaded()) &&
       preload_ == WebOSMediaClient::Preload::kPreloadMetaData &&
@@ -411,6 +419,10 @@ bool UMediaClientImpl::IsSupportedPreload() {
 bool UMediaClientImpl::CheckUseMediaPlayerManager(
     const std::string& mediaOption) {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
+#if defined(USE_GST_MEDIA)
+  return false;
+#endif  // USE_GST_MEDIA
+
   Json::Reader reader;
   Json::Value media_option;
   bool res = true;
@@ -735,6 +747,15 @@ void UMediaClientImpl::DispatchBufferRange(
       buffer_end_ = duration_;
   }
 
+#if defined(USE_GST_MEDIA)
+  // In gst media, unlike bufferRange.endTime, beginTime has milliseconds.
+  // So divide the value by 1000.
+  buffer_start_ = static_cast<double>(bufferRange.beginTime) / 1000.0;
+#else
+  buffer_start_ = static_cast<double>(bufferRange.beginTime);
+#endif
+  buffer_start_ = std::max(0.0, std::min(current_time_, buffer_start_));
+
   if (buffer_remaining_ != bufferRange.remainingTime && event_listener_) {
     buffer_remaining_ = bufferRange.remainingTime;
     if (bufferRange.remainingTime > 0) {
@@ -825,7 +846,7 @@ void UMediaClientImpl::DispatchSourceInfo(
   system_media_manager_->SourceInfoUpdated(has_video_, has_audio_);
 
   if (IsRequiredUMSInfo() && event_listener_) {
-    std::string json_string = SourceInfoToJson(MediaId(), sourceInfo);
+    std::string json_string = UMSSourceInfoToJsonString(MediaId(), sourceInfo);
 
     if (previous_source_info_ != json_string) {
       previous_source_info_ = json_string;
@@ -839,7 +860,8 @@ void UMediaClientImpl::DispatchAudioInfo(
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   has_audio_ = true;
   if (IsRequiredUMSInfo() && event_listener_)
-    event_listener_->OnUMSInfoUpdated(AudioInfoToJson(MediaId(), audioInfo));
+    event_listener_->OnUMSInfoUpdated(
+        UMSAudioInfoToJsonString(MediaId(), audioInfo));
 
   system_media_manager_->AudioInfoUpdated(audioInfo);
 }
@@ -858,7 +880,7 @@ void UMediaClientImpl::DispatchVideoInfo(
   }
 
   if (IsRequiredUMSInfo() && event_listener_) {
-    std::string json_string = VideoInfoToJson(MediaId(), videoInfo);
+    std::string json_string = UMSVideoInfoToJsonString(MediaId(), videoInfo);
 
     if (previous_video_info_ != json_string) {
       previous_video_info_ = json_string;
@@ -1011,7 +1033,7 @@ void UMediaClientImpl::DispatchSourceInfo(
   system_media_manager_->SourceInfoUpdated(has_video_, has_audio_);
 
   if (IsRequiredUMSInfo() && event_listener_) {
-    std::string json_string = SourceInfoToJson(MediaId(), sourceInfo);
+    std::string json_string = UMSSourceInfoToJsonString(MediaId(), sourceInfo);
 
     if (previous_source_info_ != json_string) {
       previous_source_info_ = json_string;
@@ -1033,7 +1055,8 @@ void UMediaClientImpl::DispatchAudioInfo(
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   has_audio_ = true;
   if (IsRequiredUMSInfo() && event_listener_)
-    event_listener_->OnUMSInfoUpdated(AudioInfoToJson(MediaId(), audioInfo));
+    event_listener_->OnUMSInfoUpdated(
+        UMSAudioInfoToJsonString(MediaId(), audioInfo));
 
   system_media_manager_->AudioInfoUpdated(audioInfo);
 }
@@ -1065,7 +1088,7 @@ void UMediaClientImpl::DispatchVideoInfo(
       event_listener_->OnVideoSizeChanged();
   }
   if (IsRequiredUMSInfo() && event_listener_) {
-    std::string json_string = VideoInfoToJson(MediaId(), video_info);
+    std::string json_string = UMSVideoInfoToJsonString(MediaId(), video_info);
 
     if (previous_video_info_ != json_string) {
       previous_video_info_ = json_string;
@@ -1176,6 +1199,11 @@ media::PipelineStatus UMediaClientImpl::CheckErrorCode(int64_t errorCode) {
     if (errorCode == SMP_RM_RELATED_ERROR) {
       status = media::DECODER_ERROR_RESOURCE_IS_RELEASED;
       released_media_resource_ = true;
+#if defined(USE_GST_MEDIA)
+      // force paused playback state
+      pause();
+      DispatchPaused();
+#endif
     }
     // allocation resources status
     if (errorCode == SMP_RESOURCE_ALLOCATION_ERROR ||

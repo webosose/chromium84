@@ -1,6 +1,6 @@
 // Copyright 2013 The Chromium Authors. All rights reserved.
 // Copyright 2013 Intel Corporation. All rights reserved.
-// Copyright 2017-2018 LG Electronics, Inc.
+// Copyright 2017 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 
 #include "ui/aura/window_tree_host.h"
 #include "ui/base/ime/neva/input_method_neva_observer.h"
+#include "ui/gfx/location_hint.h"
 #include "ui/platform_window/platform_window.h"
 #include "ui/platform_window/platform_window_delegate.h"
 #include "ui/views/widget/desktop_aura/desktop_window_tree_host.h"
@@ -182,6 +183,7 @@ class VIEWS_EXPORT DesktopWindowTreeHostOzone
   void SetUseVirtualKeyboard(bool enable) override;
   void SetWindowProperty(const std::string& name,
                          const std::string& value) override;
+  void SetLocationHint(gfx::LocationHint value) override;
   void XInputActivate(const std::string& type) override;
   void XInputDeactivate() override;
   void XInputInvokeAction(uint32_t keysym,

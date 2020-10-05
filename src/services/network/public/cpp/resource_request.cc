@@ -123,6 +123,9 @@ bool ResourceRequest::EqualsForTesting(const ResourceRequest& request) const {
              request.is_signed_exchange_prefetch_cache_enabled &&
          obey_origin_policy == request.obey_origin_policy &&
          recursive_prefetch_token == request.recursive_prefetch_token &&
+#if defined(USE_NEVA_APPRUNTIME)
+         allow_local_resources == request.allow_local_resources &&
+#endif
          trust_token_params == request.trust_token_params;
 }
 

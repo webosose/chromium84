@@ -86,7 +86,10 @@ const char kProcessPerGuestWebView[] =
 
 // Pass application Id to browser
 #if defined(OS_WEBOS)
+// Pass application Id to browser
 const char kWebOSAppId[] = "webos-appid";
+// Pass display Id to browser
+const char kWebOSDisplayId[] = "webos-displayid";
 #endif
 
 }  // namespace switches

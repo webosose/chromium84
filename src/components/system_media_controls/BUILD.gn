@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("linux/buildflags/buildflags.gni")
+import("//neva/neva.gni")
 
 config("media_player_weak_link") {
   ldflags = [
@@ -35,6 +36,19 @@ component("system_media_controls") {
     sources = [
       "win/system_media_controls_win.cc",
       "win/system_media_controls_win.h",
+    ]
+  } else if (is_webos) {
+    sources = [
+      "webos/system_media_controls_stub.cc",
+      "webos/system_media_controls_stub.h",
+      "webos/system_media_controls_webos.cc",
+      "webos/system_media_controls_webos.h",
+    ]
+    deps += [
+      "//base/neva/webos",
+      "//build:branding_buildflags",
+      "//services/media_session/public/mojom",
+      "//services/network/public/mojom",
     ]
   } else if (use_mpris) {
     sources = [

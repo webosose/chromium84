@@ -37,7 +37,7 @@ constexpr OzonePlatform::PlatformProperties kWaylandExternalPlatformProperties =
         /*needs_view_token=*/false,
         /*custom_frame_pref_default=*/false,
         /*use_system_title_bar=*/false,
-        /*message_pump_type_for_gpu=*/base::MessagePumpType::IO,
+        /*message_pump_type_for_gpu=*/base::MessagePumpType::DEFAULT,
         /*supports_vulkan_swap_chain=*/false,
         /*ignore_screen_bounds_for_menus=*/false,
 };

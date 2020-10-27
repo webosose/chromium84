@@ -21,6 +21,7 @@
 
 #include "base/bind.h"
 #include "base/command_line.h"
+#include "base/logging.h"
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/threading/thread_task_runner_handle.h"
@@ -1005,6 +1006,7 @@ void WindowManagerWayland::NotifyNativeWindowStateChanged(unsigned handle,
                << " from GPU process";
     return;
   }
+  VLOG(1) << __PRETTY_FUNCTION__;
   window->GetDelegate()->OnWindowHostStateChanged(new_state);
 }
 
@@ -1016,6 +1018,7 @@ void WindowManagerWayland::NotifyNativeWindowStateAboutToChange(unsigned handle,
                << " from GPU process";
     return;
   }
+  VLOG(1) << __PRETTY_FUNCTION__;
   window->GetDelegate()->OnWindowHostStateAboutToChange(state);
 }
 

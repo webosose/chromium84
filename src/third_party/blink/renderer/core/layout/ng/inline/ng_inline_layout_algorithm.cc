@@ -242,15 +242,19 @@ void NGInlineLayoutAlgorithm::CreateLine(
 
       DCHECK(item.TextType() == NGTextType::kNormal ||
              item.TextType() == NGTextType::kSymbolMarker);
+      UBiDiLevel container_level = IsLtr(line_info->BaseDirection()) ? 0 : 1;
+      UBiDiLevel bidi_level = item_result.has_only_trailing_spaces
+                                  ? container_level
+                                  : item.BidiLevel();
       if (UNLIKELY(item_result.hyphen_shape_result)) {
         LayoutUnit hyphen_inline_size = item_result.HyphenInlineSize();
         line_box_.AddChild(&item_result, box->text_top,
                            item_result.inline_size - hyphen_inline_size,
-                           box->text_height, item.BidiLevel());
+                           box->text_height, bidi_level);
         PlaceHyphen(item_result, hyphen_inline_size, box);
       } else {
         line_box_.AddChild(&item_result, box->text_top, item_result.inline_size,
-                           box->text_height, item.BidiLevel());
+                           box->text_height, bidi_level);
       }
       has_logical_text_items = true;
 

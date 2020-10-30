@@ -531,19 +531,11 @@ void WebView::SetBlockWriteDiskcache(bool blocked) {
 }
 
 void WebView::SetTransparentBackground(bool enable) {
-  if (frame_host_)
-    frame_host_->GetView()->SetBackgroundColor(enable ? SK_ColorTRANSPARENT
-                                                      : SK_ColorBLACK);
-  else
-    transparent_background_ = enable;
+  if (enable)
+    SetBackgroundColor(0, 0, 0, 0);
 }
 
 void WebView::RenderFrameCreated(content::RenderFrameHost* render_frame_host) {
-  if (transparent_background_)
-    render_frame_host->GetView()->SetBackgroundColor(SK_ColorTRANSPARENT);
-  else
-    render_frame_host->GetView()->SetBackgroundColor(SK_ColorBLACK);
-
   if (network_timeout_) {
     mojo::AssociatedRemote<mojom::AppRuntimeWebViewClient> client;
     render_frame_host->GetRemoteAssociatedInterfaces()->GetInterface(&client);

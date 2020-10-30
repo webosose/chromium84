@@ -43,6 +43,7 @@
 #include "neva/app_runtime/common/app_runtime_user_agent.h"
 #include "neva/app_runtime/public/proxy_settings.h"
 #include "neva/app_runtime/webview.h"
+#include "services/network/cross_origin_read_blocking.h"
 #include "services/network/public/mojom/network_service.mojom.h"
 #include "services/service_manager/sandbox/switches.h"
 #include "ui/base/ui_base_neva_switches.h"
@@ -489,4 +490,28 @@ void AppRuntimeContentBrowserClient::RenderProcessWillLaunch(
       new ExtensionsGuestViewMessageFilter(render_process_id, browser_context));
 }
 #endif
+
+void AppRuntimeContentBrowserClient::PushCORBDisabledToIOThread(int process_id,
+                                                                bool disabled) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  base::PostTask(
+      FROM_HERE, {content::BrowserThread::IO},
+      base::BindOnce(&AppRuntimeContentBrowserClient::SetCORBDisabledOnIOThread,
+                     base::Unretained(this), process_id, disabled));
+}
+
+void AppRuntimeContentBrowserClient::SetCORBDisabledOnIOThread(int process_id,
+                                                               bool disabled) {
+  if (!GetNetworkService()) {
+    DCHECK_CURRENTLY_ON(BrowserThread::UI);
+    return;
+  }
+
+  if (disabled) {
+    GetNetworkService()->AddCorbExceptionForProcess(process_id);
+  } else {
+    GetNetworkService()->RemoveCorbExceptionForProcess(process_id);
+  }
+}
+
 }  // namespace neva_app_runtime

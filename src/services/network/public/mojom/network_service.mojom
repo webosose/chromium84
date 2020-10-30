@@ -371,6 +371,12 @@ interface NetworkService {
   // Reverts AddCorbExceptionForPlugin and AddAllowedRequestInitiatorForPlugin.
   RemoveSecurityExceptionsForPlugin(int32 process_id);
 
+  [EnableIf=is_webos]
+  AddCorbExceptionForProcess(uint32 process_id);
+
+  [EnableIf=is_webos]
+  RemoveCorbExceptionForProcess(uint32 process_id);
+
   // Called when the system is low on memory.
   OnMemoryPressure(mojo_base.mojom.MemoryPressureLevel memory_pressure_level);
 

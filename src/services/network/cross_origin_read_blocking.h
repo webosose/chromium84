@@ -351,6 +351,12 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) CrossOriginReadBlocking {
   // Reverts AddExceptionForPlugin.
   static void RemoveExceptionForPlugin(int process_id);
 
+#if defined(USE_NEVA_APPRUNTIME)
+  static void AddExceptionForProcess(int process_id);
+  static bool ShouldAllowForProcess(int process_id);
+  static void RemoveExceptionForProcess(int process_id);
+#endif  // USE_NEVA_APPRUNTIME
+
  private:
   CrossOriginReadBlocking();  // Not instantiable.
 

@@ -674,6 +674,18 @@ void NetworkService::RemoveSecurityExceptionsForPlugin(int32_t process_id) {
   map.erase(process_id);
 }
 
+#if defined(OS_WEBOS)
+void NetworkService::AddCorbExceptionForProcess(uint32_t process_id) {
+  DCHECK_NE(mojom::kBrowserProcessId, process_id);
+  CrossOriginReadBlocking::AddExceptionForProcess(process_id);
+}
+
+void NetworkService::RemoveCorbExceptionForProcess(uint32_t process_id) {
+  DCHECK_NE(mojom::kBrowserProcessId, process_id);
+  CrossOriginReadBlocking::RemoveExceptionForProcess(process_id);
+}
+#endif
+
 bool NetworkService::IsInitiatorAllowedForPlugin(
     int process_id,
     const url::Origin& request_initiator) {

@@ -167,6 +167,10 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
       int32_t process_id,
       const url::Origin& allowed_request_initiator) override;
   void RemoveSecurityExceptionsForPlugin(int32_t process_id) override;
+#if defined(OS_WEBOS)
+  void AddCorbExceptionForProcess(uint32_t process_id) override;
+  void RemoveCorbExceptionForProcess(uint32_t process_id) override;
+#endif
   void OnMemoryPressure(base::MemoryPressureListener::MemoryPressureLevel
                             memory_pressure_level) override;
   void OnPeerToPeerConnectionsCountChange(uint32_t count) override;

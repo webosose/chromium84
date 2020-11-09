@@ -668,6 +668,7 @@ void WaylandDisplay::DetachWindowGroup(unsigned w) {
     return;
   }
   widget->DetachGroup();
+  wl_display_flush(display_);
 #else
   LOG(INFO) << __func__ << " reached";
 #endif
@@ -689,6 +690,7 @@ void WaylandDisplay::CreateWindowGroup(
     return;
   }
   widget->CreateGroup(config);
+  wl_display_flush(display_);
 #else
   LOG(INFO) << __func__ << " reached";
 #endif
@@ -704,6 +706,7 @@ void WaylandDisplay::AttachToWindowGroup(unsigned w,
     return;
   }
   widget->AttachToGroup(group, layer);
+  wl_display_flush(display_);
 #else
   LOG(INFO) << __func__ << " reached";
 #endif
@@ -717,6 +720,7 @@ void WaylandDisplay::FocusWindowGroupOwner(unsigned w) {
     return;
   }
   widget->FocusGroupOwner();
+  wl_display_flush(display_);
 #else
   LOG(INFO) << __func__ << " reached";
 #endif
@@ -730,6 +734,7 @@ void WaylandDisplay::FocusWindowGroupLayer(unsigned w) {
     return;
   }
   widget->FocusGroupLayer();
+  wl_display_flush(display_);
 #endif
 }
 
@@ -920,6 +925,7 @@ void WaylandDisplay::XInputInvokeAction(uint32_t keysym,
   }
   wl_webos_xinput_invoke_action(webos_xinput_, keysym, wl_keysym_type,
                                 wl_event_type);
+  wl_display_flush(display_);
 #else
   LOG(INFO) << "WaylandDisplay::XInputInvokeAction reached";
 #endif

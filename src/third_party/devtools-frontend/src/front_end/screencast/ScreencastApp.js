@@ -18,7 +18,8 @@ let _appInstance;
  */
 export class ScreencastApp {
   constructor() {
-    this._enabledSetting = Common.Settings.Settings.instance().createSetting('screencastEnabled', true);
+    // disable ScreenCast for WebOS (it working on port 9998) by default
+    this._enabledSetting = Common.Settings.Settings.instance().createSetting('screencastEnabled', document.location.port == 9998 ? false : true);
     this._toggleButton = new UI.Toolbar.ToolbarToggle(Common.UIString.UIString('Toggle screencast'), 'largeicon-phone');
     this._toggleButton.setToggled(this._enabledSetting.get());
     this._toggleButton.setEnabled(false);

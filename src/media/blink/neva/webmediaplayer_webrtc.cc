@@ -43,13 +43,6 @@ namespace media {
   (DCHECK(main_task_runner_->BelongsToCurrentThread()), \
    media::BindToCurrentLoop(base::Bind(function, weak_ptr_this_)))
 
-namespace {
-
-// Any reasonable size, will be overridden by the decoder anyway.
-const gfx::Size kDefaultSize(640, 480);
-
-}  // namespace
-
 WebMediaPlayerWebRTC::WebMediaPlayerWebRTC(
     blink::WebLocalFrame* frame,
     blink::WebMediaPlayerClient* client,
@@ -477,7 +470,7 @@ void WebMediaPlayerWebRTC::InitMediaPlatformAPI(
   // audio data handling and rendering path is separate. We are leaving
   // it to be taken care by Chromium now. So, we dont need any audio config
   AudioDecoderConfig audio_config;
-  VideoDecoderConfig video_config = GetVideoConfig();
+  VideoDecoderConfig video_config = GetVideoConfig(input_frame);
 
   LOG(INFO) << __func__
             << " : natural_size: " << video_config.natural_size().ToString();
@@ -774,7 +767,8 @@ void WebMediaPlayerWebRTC::EnqueueHoleFrame(
   }
 }
 
-VideoDecoderConfig WebMediaPlayerWebRTC::GetVideoConfig() {
+VideoDecoderConfig WebMediaPlayerWebRTC::GetVideoConfig(
+    const scoped_refptr<media::VideoFrame>& video_frame) {
   VideoCodecProfile profile = media::VIDEO_CODEC_PROFILE_UNKNOWN;
   switch (codec_) {
     case media::kCodecH264:
@@ -796,10 +790,9 @@ VideoDecoderConfig WebMediaPlayerWebRTC::GetVideoConfig() {
 
   media::VideoDecoderConfig video_config(
       codec_, profile, media::VideoDecoderConfig::AlphaMode::kIsOpaque,
-      media::VideoColorSpace(), media::kNoTransformation, kDefaultSize,
-      gfx::Rect(kDefaultSize),
-      // kDefaultSize, media::EmptyExtraData(), media::Unencrypted());
-      kDefaultSize, media::EmptyExtraData(),
+      media::VideoColorSpace(), media::kNoTransformation,
+      video_frame->coded_size(), video_frame->visible_rect(),
+      video_frame->natural_size(), media::EmptyExtraData(),
       media::EncryptionScheme::kUnencrypted);
   video_config.set_live_stream(true);
   return video_config;

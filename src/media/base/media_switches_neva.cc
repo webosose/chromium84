@@ -28,6 +28,9 @@ const char kFakeUrlMediaDuration[] = "fake-url-media-duration";
 // Enables platforms to provide h/w accelarated video decoder.
 const char kEnableWebRTCPlatformVideoDecoder[] =
     "enable-webrtc-platform-video-decoder";
+// Enables platforms to provide h/w accelarated video encoder.
+const char kEnableWebRTCPlatformVideoEncoder[] =
+    "enable-webrtc-platform-video-encoder";
 #endif
 
 }  // namespace switches

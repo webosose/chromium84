@@ -22,6 +22,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
+#include "content/public/browser/bluetooth_scanning_prompt.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -37,17 +38,20 @@
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "content/shell/browser/shell_devtools_frontend.h"
 #include "content/shell/browser/shell_javascript_dialog_manager.h"
+#include "content/shell/common/shell_switches.h"
+#include "media/media_buildflags.h"
+#include "third_party/blink/public/common/peerconnection/webrtc_ip_handling_policy.h"
+#include "third_party/blink/public/mojom/renderer_preferences.mojom.h"
+
+#if !defined(USE_CBE)
 #include "content/shell/browser/web_test/fake_bluetooth_scanning_prompt.h"
 #include "content/shell/browser/web_test/secondary_test_window_observer.h"
 #include "content/shell/browser/web_test/web_test_bluetooth_chooser_factory.h"
 #include "content/shell/browser/web_test/web_test_control_host.h"
 #include "content/shell/browser/web_test/web_test_devtools_bindings.h"
 #include "content/shell/browser/web_test/web_test_javascript_dialog_manager.h"
-#include "content/shell/common/shell_switches.h"
 #include "content/shell/common/web_test/web_test_switches.h"
-#include "media/media_buildflags.h"
-#include "third_party/blink/public/common/peerconnection/webrtc_ip_handling_policy.h"
-#include "third_party/blink/public/mojom/renderer_preferences.mojom.h"
+#endif
 
 namespace content {
 
@@ -87,6 +91,7 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
   if (should_set_delegate)
     web_contents_->SetDelegate(this);
 
+#if !defined(USE_CBE)
   if (switches::IsRunWebTestsSwitchPresent()) {
     headless_ = !base::CommandLine::ForCurrentProcess()->HasSwitch(
         switches::kDisableHeadlessMode);
@@ -94,6 +99,10 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
     UpdateFontRendererPreferencesFromSystemSettings(
         web_contents_->GetMutableRendererPrefs());
   }
+#else
+  UpdateFontRendererPreferencesFromSystemSettings(
+      web_contents_->GetMutableRendererPrefs());
+#endif
 
   windows_.push_back(this);
 
@@ -145,10 +154,12 @@ Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
   // Note: Do not make RenderFrameHost or RenderViewHost specific state changes
   // here, because they will be forgotten after a cross-process navigation. Use
   // RenderFrameCreated or RenderViewCreated instead.
+#if !defined(USE_CBE)
   if (switches::IsRunWebTestsSwitchPresent()) {
     raw_web_contents->GetMutableRendererPrefs()->use_custom_colors = false;
     raw_web_contents->SyncRendererPrefs();
   }
+#endif
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kForceWebRtcIPHandlingPolicy)) {
@@ -344,8 +355,10 @@ void Shell::AddNewContents(WebContents* source,
   CreateShell(
       std::move(new_contents), AdjustWindowSize(initial_rect.size()),
       !delay_popup_contents_delegate_for_testing_ /* should_set_delegate */);
+#if !defined(USE_CBE)
   if (switches::IsRunWebTestsSwitchPresent())
     SecondaryTestWindowObserver::CreateForWebContents(raw_new_contents);
+#endif
 }
 
 void Shell::GoBackOrForward(int offset) {
@@ -465,8 +478,10 @@ WebContents* Shell::OpenURLFromTab(WebContents* source,
                                  params.source_site_instance,
                                  gfx::Size());  // Use default size.
       target = new_window->web_contents();
+#if !defined(USE_CBE)
       if (switches::IsRunWebTestsSwitchPresent())
         SecondaryTestWindowObserver::CreateForWebContents(target);
+#endif
       break;
     }
 
@@ -579,10 +594,14 @@ void Shell::NavigationStateChanged(WebContents* source,
 JavaScriptDialogManager* Shell::GetJavaScriptDialogManager(
     WebContents* source) {
   if (!dialog_manager_) {
+#if !defined(USE_CBE)
     if (switches::IsRunWebTestsSwitchPresent())
       dialog_manager_ = std::make_unique<WebTestJavaScriptDialogManager>();
     else
       dialog_manager_ = std::make_unique<ShellJavaScriptDialogManager>();
+#else
+    dialog_manager_ = std::make_unique<ShellJavaScriptDialogManager>();
+#endif
   }
   return dialog_manager_.get();
 }
@@ -590,16 +609,22 @@ JavaScriptDialogManager* Shell::GetJavaScriptDialogManager(
 std::unique_ptr<BluetoothChooser> Shell::RunBluetoothChooser(
     RenderFrameHost* frame,
     const BluetoothChooser::EventHandler& event_handler) {
+#if !defined(USE_CBE)
   WebTestControlHost* web_test_control_host = WebTestControlHost::Get();
   if (web_test_control_host && switches::IsRunWebTestsSwitchPresent())
     return web_test_control_host->RunBluetoothChooser(frame, event_handler);
+#endif
   return nullptr;
 }
 
 std::unique_ptr<BluetoothScanningPrompt> Shell::ShowBluetoothScanningPrompt(
     RenderFrameHost* frame,
     const BluetoothScanningPrompt::EventHandler& event_handler) {
+#if !defined(USE_CBE)
   return std::make_unique<FakeBluetoothScanningPrompt>(event_handler);
+#else
+  return std::make_unique<BluetoothScanningPrompt>();
+#endif
 }
 
 #if defined(OS_MACOSX)
@@ -614,21 +639,29 @@ bool Shell::DidAddMessageToConsole(WebContents* source,
                                    const base::string16& message,
                                    int32_t line_no,
                                    const base::string16& source_id) {
+#if !defined(USE_CBE)
   return switches::IsRunWebTestsSwitchPresent();
+#else
+  return false;
+#endif
 }
 
 void Shell::PortalWebContentsCreated(WebContents* portal_web_contents) {
+#if !defined(USE_CBE)
   if (switches::IsRunWebTestsSwitchPresent())
     SecondaryTestWindowObserver::CreateForWebContents(portal_web_contents);
+#endif
 }
 
 void Shell::RendererUnresponsive(
     WebContents* source,
     RenderWidgetHost* render_widget_host,
     base::RepeatingClosure hang_monitor_restarter) {
+#if !defined(USE_CBE)
   WebTestControlHost* web_test_control_host = WebTestControlHost::Get();
   if (web_test_control_host && switches::IsRunWebTestsSwitchPresent())
     web_test_control_host->RendererUnresponsive();
+#endif
 }
 
 void Shell::ActivateContents(WebContents* contents) {
@@ -666,12 +699,14 @@ bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
                                               const url::Origin& origin,
                                               const GURL& resource_url) {
   bool allowed_by_test = false;
+#if !defined(USE_CBE)
   WebTestControlHost* web_test_control_host = WebTestControlHost::Get();
   if (web_test_control_host && switches::IsRunWebTestsSwitchPresent()) {
     const base::DictionaryValue& test_flags =
         web_test_control_host->accumulated_web_test_runtime_flags_changes();
     test_flags.GetBoolean("running_insecure_content_allowed", &allowed_by_test);
   }
+#endif
 
   return allowed_per_prefs || allowed_by_test;
 }
@@ -682,9 +717,13 @@ PictureInPictureResult Shell::EnterPictureInPicture(
     const gfx::Size& natural_size) {
   // During tests, returning success to pretend the window was created and allow
   // tests to run accordingly.
+#if !defined(USE_CBE)
   if (!switches::IsRunWebTestsSwitchPresent())
     return PictureInPictureResult::kNotSupported;
   return PictureInPictureResult::kSuccess;
+#else
+  return PictureInPictureResult::kNotSupported;
+#endif
 }
 
 bool Shell::ShouldResumeRequestsForCreatedWindow() {

@@ -24,13 +24,10 @@
 #include "content/public/common/url_constants.h"
 #include "content/shell/app/shell_crash_reporter_client.h"
 #include "content/shell/browser/shell_content_browser_client.h"
-#include "content/shell/browser/web_test/web_test_browser_main_runner.h"
-#include "content/shell/browser/web_test/web_test_content_browser_client.h"
 #include "content/shell/common/shell_content_client.h"
 #include "content/shell/common/shell_switches.h"
 #include "content/shell/gpu/shell_content_gpu_client.h"
 #include "content/shell/renderer/shell_content_renderer_client.h"
-#include "content/shell/renderer/web_test/web_test_content_renderer_client.h"
 #include "content/shell/utility/shell_content_utility_client.h"
 #include "ipc/ipc_buildflags.h"
 #include "net/cookies/cookie_monster.h"
@@ -75,6 +72,12 @@
 #if defined(OS_FUCHSIA)
 #include "base/base_paths_fuchsia.h"
 #endif  // OS_FUCHSIA
+
+#if !defined(USE_CBE)
+#include "content/shell/browser/web_test/web_test_browser_main_runner.h"
+#include "content/shell/browser/web_test/web_test_content_browser_client.h"
+#include "content/shell/renderer/web_test/web_test_content_renderer_client.h"
+#endif
 
 namespace {
 
@@ -137,6 +140,7 @@ bool ShellMainDelegate::BasicStartupComplete(int* exit_code) {
     exit_code = &dummy;
 
   base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
+#if !defined(USE_CBE)
   if (command_line.HasSwitch("run-layout-test")) {
     std::cerr << std::string(79, '*') << "\n"
               << "* The flag --run-layout-test is obsolete. Please use --"
@@ -144,6 +148,7 @@ bool ShellMainDelegate::BasicStartupComplete(int* exit_code) {
               << std::string(79, '*') << "\n";
     command_line.AppendSwitch(switches::kRunWebTests);
   }
+#endif
 
 #if defined(OS_ANDROID)
   Compositor::Initialize();
@@ -168,6 +173,7 @@ bool ShellMainDelegate::BasicStartupComplete(int* exit_code) {
 
   InitLogging(command_line);
 
+#if !defined(USE_CBE)
   if (switches::IsRunWebTestsSwitchPresent()) {
     const bool browser_process =
         command_line.GetSwitchValueASCII(switches::kProcessType).empty();
@@ -176,6 +182,7 @@ bool ShellMainDelegate::BasicStartupComplete(int* exit_code) {
       web_test_runner_->Initialize();
     }
   }
+#endif
 
   return false;
 }
@@ -224,6 +231,7 @@ int ShellMainDelegate::RunProcess(
   base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(
       kTraceEventBrowserProcessSortIndex);
 
+#if !defined(USE_CBE)
   if (switches::IsRunWebTestsSwitchPresent()) {
     // Web tests implement their own BrowserMain() replacement.
     web_test_runner_->RunBrowserMain(main_function_params);
@@ -233,6 +241,7 @@ int ShellMainDelegate::RunProcess(
     // return an error.
     return 0;
   }
+#endif
 
 #if !defined(OS_ANDROID)
   // On non-Android, we can return -1 and have the caller run BrowserMain()
@@ -326,10 +335,14 @@ ContentClient* ShellMainDelegate::CreateContentClient() {
 }
 
 ContentBrowserClient* ShellMainDelegate::CreateContentBrowserClient() {
+#if !defined(USE_CBE)
   if (switches::IsRunWebTestsSwitchPresent())
     browser_client_ = std::make_unique<WebTestContentBrowserClient>();
   else
     browser_client_ = std::make_unique<ShellContentBrowserClient>();
+#else
+  browser_client_ = std::make_unique<ShellContentBrowserClient>();
+#endif
   return browser_client_.get();
 }
 
@@ -339,10 +352,14 @@ ContentGpuClient* ShellMainDelegate::CreateContentGpuClient() {
 }
 
 ContentRendererClient* ShellMainDelegate::CreateContentRendererClient() {
+#if !defined(USE_CBE)
   if (switches::IsRunWebTestsSwitchPresent())
     renderer_client_ = std::make_unique<WebTestContentRendererClient>();
   else
     renderer_client_ = std::make_unique<ShellContentRendererClient>();
+#else
+  renderer_client_ = std::make_unique<ShellContentRendererClient>();
+#endif
   return renderer_client_.get();
 }
 

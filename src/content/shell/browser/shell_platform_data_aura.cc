@@ -10,9 +10,6 @@
 #include "ui/aura/client/default_capture_client.h"
 #include "ui/aura/env.h"
 #include "ui/aura/layout_manager.h"
-#include "ui/aura/test/test_focus_client.h"
-#include "ui/aura/test/test_screen.h"
-#include "ui/aura/test/test_window_parenting_client.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
 #include "ui/base/ime/init/input_method_factory.h"
@@ -28,6 +25,12 @@
 
 #if defined(USE_OZONE)
 #include "ui/aura/screen_ozone.h"
+#endif
+
+#if !defined(USE_CBE)
+#include "ui/aura/test/test_focus_client.h"
+#include "ui/aura/test/test_screen.h"
+#include "ui/aura/test/test_window_parenting_client.h"
 #endif
 
 namespace content {
@@ -106,14 +109,18 @@ ShellPlatformDataAura::ShellPlatformDataAura(const gfx::Size& initial_size) {
   host_->window()->Show();
   host_->window()->SetLayoutManager(new FillLayout(host_->window()));
 
+#if !defined(USE_CBE)
   focus_client_ =
       std::make_unique<aura::test::TestFocusClient>(host_->window());
+#endif
 
   new wm::DefaultActivationClient(host_->window());
   capture_client_ =
       std::make_unique<aura::client::DefaultCaptureClient>(host_->window());
+#if !defined(USE_CBE)
   window_parenting_client_ =
       std::make_unique<aura::test::TestWindowParentingClient>(host_->window());
+#endif
 }
 
 ShellPlatformDataAura::~ShellPlatformDataAura() {

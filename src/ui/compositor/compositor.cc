@@ -814,7 +814,8 @@ void Compositor::SuspendDrawing() {
   if (disable_drawing_)
     return;
 
-  display_private_->ForceImmediateDrawAndSwapIfPossible();
+  if (display_private_)
+    display_private_->ForceImmediateDrawAndSwapIfPossible();
 
   disable_drawing_ = true;
   host_->SetVisible(false);

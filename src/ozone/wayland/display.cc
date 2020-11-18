@@ -235,21 +235,13 @@ void WaylandDisplay::DestroyWindow(unsigned w) {
   widget_map_.erase(w);
 }
 
-intptr_t WaylandDisplay::GetNativeWindow(unsigned window_handle) {
-  WaylandWindow* widget = GetWidget(window_handle);
-  DCHECK(widget);
-  widget->RealizeAcceleratedWidget();
-
-  VLOG(1) << "GetNativeWindow (id:" << window_handle << ", widget:" << widget
-          << " egl:" << (widget ? widget->egl_window() : 0);
-
-  return reinterpret_cast<intptr_t>(widget->egl_window());
-}
-
 wl_egl_window* WaylandDisplay::GetEglWindow(
     unsigned window_handle) {
   WaylandWindow* widget = GetWidget(window_handle);
-  DCHECK(widget);
+
+  if (!widget)
+    widget = CreateAcceleratedSurface(window_handle);
+
   widget->RealizeAcceleratedWidget();
   return widget->egl_window();
 }
@@ -533,8 +525,8 @@ void WaylandDisplay::SetWidgetTitle(unsigned w, const base::string16& title) {
 }
 
 void WaylandDisplay::CreateWidget(unsigned widget) {
-  DCHECK(!GetWidget(widget));
-  CreateAcceleratedSurface(widget);
+  if (!GetWidget(widget))
+    CreateAcceleratedSurface(widget);
 }
 
 void WaylandDisplay::InitWindow(unsigned handle,

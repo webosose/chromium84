@@ -157,7 +157,6 @@ class WaylandDisplay : public ui::SurfaceFactoryOzone,
   // Returns WaylandWindow associated with w. The ownership is not transferred
   // to the caller.
   WaylandWindow* GetWindow(unsigned window_handle) const;
-  intptr_t GetNativeWindow(unsigned window_handle);
   wl_egl_window* GetEglWindow(unsigned window_handle);
 
   // Destroys WaylandWindow whose handle is w.

@@ -26,6 +26,7 @@
 #include "media/blink/neva/video_util_neva.h"
 #include "media/neva/media_platform_api.h"
 #include "media/neva/media_preferences.h"
+#include "media/webrtc/neva/webrtc_pass_through_video_decoder.h"
 #include "third_party/blink/public/web/modules/media/webmediaplayer_util.h"
 #include "third_party/blink/public/web/modules/mediastream/web_media_stream_renderer_factory.h"
 #include "third_party/blink/public/web/web_local_frame.h"
@@ -112,11 +113,6 @@ WebMediaPlayerWebRTC::~WebMediaPlayerWebRTC() {
   LOG(INFO) << __func__ << " delegate_id_: " << delegate_id_;
 
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  WebRtcPassThroughVideoDecoder* decoder =
-      WebRtcPassThroughVideoDecoder::FromId(decoder_id_);
-  if (decoder)
-    decoder->SetClient(nullptr);
 
   compositor_task_runner_->DeleteSoon(FROM_HERE,
                                       std::move(video_frame_provider_impl_));
@@ -208,11 +204,6 @@ void WebMediaPlayerWebRTC::OnFrameShown() {
 
   blink::WebMediaPlayerMS::OnFrameShown();
 
-  WebRtcPassThroughVideoDecoder* decoder =
-      WebRtcPassThroughVideoDecoder::FromId(decoder_id_);
-  if (decoder)
-    decoder->RequestKeyFrame();
-
   ResumeInternal();
 }
 
@@ -243,6 +234,7 @@ void WebMediaPlayerWebRTC::OnMediaActivationPermitted() {
 
 void WebMediaPlayerWebRTC::OnVideoWindowCreated(
     const ui::VideoWindowInfo& info) {
+  VLOG(1) << __func__;
   video_window_info_ = info;
   video_frame_provider_impl_->SetOverlayPlaneId(info.window_id);
   if (media_platform_api_)
@@ -257,6 +249,7 @@ void WebMediaPlayerWebRTC::OnVideoWindowCreated(
 }
 
 void WebMediaPlayerWebRTC::OnVideoWindowDestroyed() {
+  VLOG(1) << __func__;
   video_window_info_ = base::nullopt;
   video_window_client_receiver_.reset();
 }
@@ -406,15 +399,8 @@ void WebMediaPlayerWebRTC::HandleEncodedFrame(
     return;
   }
 
-  if (!media_platform_api_) {
-    decoder_id_ = encoded_frame->get_decoder_id();
-    LOG(INFO) << __func__ << " : delegate_id_: " << delegate_id_
-              << " decoder_id: " << decoder_id_;
-    auto video_decoder = WebRtcPassThroughVideoDecoder::FromId(decoder_id_);
-    if (video_decoder != nullptr)
-      video_decoder->SetClient(this);
+  if (!media_platform_api_)
     StartMediaPipeline(encoded_frame);
-  }
 
   {
     base::AutoLock auto_lock(frame_lock_);
@@ -452,7 +438,7 @@ void WebMediaPlayerWebRTC::StartMediaPipeline(
         BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnSuspended),
         BIND_TO_RENDER_LOOP_VIDEO_FRAME_PROVIDER(
             &VideoFrameProviderImpl::ActiveRegionChanged),
-        BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnError));
+        BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnPipelineError));
   } else {
     media_platform_api_ = media::MediaPlatformAPI::Create(
         media_task_runner_, client_->IsVideo(), app_id_,
@@ -461,7 +447,7 @@ void WebMediaPlayerWebRTC::StartMediaPipeline(
         BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnSuspended),
         BIND_TO_RENDER_LOOP_VIDEO_FRAME_PROVIDER(
             &VideoFrameProviderImpl::ActiveRegionChanged),
-        BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnError));
+        BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnPipelineError));
   }
 
   media_platform_api_->SetMediaPreferences(
@@ -519,9 +505,10 @@ void WebMediaPlayerWebRTC::ReleaseMediaPlatformAPI() {
   if (!media_platform_api_)
     return;
 
-  platform_decoders_available_ = true;
   handle_encoded_frames_ = false;
   media_platform_api_->Finalize();
+
+  WebRtcPassThroughVideoDecoder::SetMediaDecoderAvailable(true);
 
   // Make sure to stop the pipeline so there's no more media threads running.
   base::WaitableEvent event(base::WaitableEvent::ResetPolicy::AUTOMATIC,
@@ -660,39 +647,9 @@ void WebMediaPlayerWebRTC::OnResumed() {
 void WebMediaPlayerWebRTC::OnSuspended() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  platform_decoders_available_ = true;
+  WebRtcPassThroughVideoDecoder::SetMediaDecoderAvailable(true);
 
   delegate_->DidMediaSuspended(delegate_id_);
-}
-
-void WebMediaPlayerWebRTC::OnError(PipelineStatus status) {
-  VLOG(1) << __func__ << " : delegate_id_: " << delegate_id_
-          << " status : " << status;
-
-  if (is_loading_) {
-    is_loading_ = false;
-    delegate_->DidMediaActivated(delegate_id_);
-  }
-
-  if (is_destroying_)
-    return;
-
-  if (status == media::DECODER_ERROR_RESOURCE_IS_RELEASED)
-    platform_decoders_available_ = false;
-
-  {
-    base::AutoLock auto_lock(frame_lock_);
-    pending_encoded_frames_.clear();
-  }
-
-  compositor_->ReplaceCurrentFrameWithACopy();
-
-  pipeline_running_ = false;
-  pipeline_status_ = status;
-
-  SetNetworkState(blink::PipelineErrorToNetworkState(status));
-
-  RepaintInternal();
 }
 
 // It returns true if video window is already created and can be continued
@@ -761,6 +718,36 @@ void WebMediaPlayerWebRTC::OnMediaPlatformAPIInitialized(
   media_task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&WebMediaPlayerWebRTC::OnPipelineFeed, weak_ptr_this_));
+}
+
+void WebMediaPlayerWebRTC::OnPipelineError(PipelineStatus status) {
+  VLOG(1) << __func__ << " : delegate_id_: " << delegate_id_
+          << " status : " << status;
+
+  if (is_loading_) {
+    is_loading_ = false;
+    delegate_->DidMediaActivated(delegate_id_);
+  }
+
+  if (is_destroying_)
+    return;
+
+  if (status == media::DECODER_ERROR_RESOURCE_IS_RELEASED)
+    WebRtcPassThroughVideoDecoder::SetMediaDecoderAvailable(false);
+
+  {
+    base::AutoLock auto_lock(frame_lock_);
+    pending_encoded_frames_.clear();
+  }
+
+  compositor_->ReplaceCurrentFrameWithACopy();
+
+  pipeline_running_ = false;
+  pipeline_status_ = status;
+
+  SetNetworkState(blink::PipelineErrorToNetworkState(status));
+
+  RepaintInternal();
 }
 
 void WebMediaPlayerWebRTC::EnqueueHoleFrame(

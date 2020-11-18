@@ -27,7 +27,6 @@
 #include "media/blink/neva/video_frame_provider_impl.h"
 #include "media/blink/neva/webmediaplayer_params_neva.h"
 #include "media/neva/media_platform_api.h"
-#include "media/webrtc/neva/webrtc_pass_through_video_decoder.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/platform/web_media_player_source.h"
@@ -49,8 +48,7 @@ class VideoHoleGeometryUpdateHelper;
 
 class MEDIA_BLINK_EXPORT WebMediaPlayerWebRTC
     : public ui::mojom::VideoWindowClient,
-      public blink::WebMediaPlayerMS,
-      public WebRtcPassThroughVideoDecoder::Client {
+      public blink::WebMediaPlayerMS {
  public:
   // Constructs a WebMediaPlayer implementation using Chromium's media stack.
   // |delegate| may be null. |renderer_factory_selector| must not be null.
@@ -116,9 +114,6 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerWebRTC
                             bool is_opaque) override;
   void OnRotationChanged(media::VideoRotation video_rotation) override;
 
-  // Overridden from parent WebRtcPassThroughVideoDecoder::Client
-  bool HasAvailableResources() override { return platform_decoders_available_; }
-
  private:
   enum class StatusOnSuspended {
     UnknownStatus = 0,
@@ -146,12 +141,13 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerWebRTC
   void OnNaturalVideoSizeChanged(const gfx::Size& natural_video_size);
   void OnResumed();
   void OnSuspended();
-  void OnError(PipelineStatus status);
 
   bool EnsureVideoWindowCreated();
   void ContinuePlayerWithWindowId();
 
   void OnMediaPlatformAPIInitialized(PipelineStatus status);
+  void OnPipelineError(PipelineStatus status);
+
   void EnqueueHoleFrame(const scoped_refptr<media::VideoFrame>& output_frame);
   VideoDecoderConfig GetVideoConfig();
   std::unique_ptr<VideoFrameProviderImpl> video_frame_provider_impl_;
@@ -187,7 +183,6 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerWebRTC
   base::Lock frame_lock_;
   std::vector<scoped_refptr<media::VideoFrame>> pending_encoded_frames_;
 
-  uint32_t decoder_id_ = 0;
   VideoCodec codec_ = media::kUnknownVideoCodec;
 
   // Whether or not the pipeline is running.
@@ -195,8 +190,6 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerWebRTC
   bool is_destroying_ = false;
 
   bool handle_encoded_frames_ = false;
-
-  bool platform_decoders_available_ = true;
 
   bool has_activation_permit_ = false;
 

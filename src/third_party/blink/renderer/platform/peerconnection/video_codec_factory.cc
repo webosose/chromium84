@@ -23,6 +23,8 @@
 #endif
 
 #if defined(USE_NEVA_WEBRTC)
+#include "base/command_line.h"
+#include "media/base/media_switches_neva.h"
 #include "media/webrtc/neva/neva_webrtc_video_decoder_factory.h"
 #endif
 
@@ -211,13 +213,18 @@ std::unique_ptr<webrtc::VideoDecoderFactory> CreateWebrtcVideoDecoderFactory(
   std::unique_ptr<webrtc::VideoDecoderFactory> decoder_factory;
 
 #if defined(USE_NEVA_WEBRTC)
-  decoder_factory = std::make_unique<media::NevaWebRtcVideoDecoderFactory>();
-#else
+  const base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
+  if (cmd_line->HasSwitch(switches::kEnableWebRTCPlatformVideoDecoder)) {
+    decoder_factory = std::make_unique<media::NevaWebRtcVideoDecoderFactory>(
+        gpu_factories->GetTaskRunner());
+  }
+  if (!decoder_factory)
+#endif
+
   if (gpu_factories && gpu_factories->IsGpuVideoAcceleratorEnabled() &&
       Platform::Current()->IsWebRtcHWDecodingEnabled()) {
     decoder_factory = std::make_unique<RTCVideoDecoderFactory>(gpu_factories);
   }
-#endif
 
   return std::make_unique<DecoderAdapter>(std::move(decoder_factory));
 }

@@ -24,4 +24,10 @@ const char kDisableWebMediaPlayerNeva[] = "disable-web-media-player-neva";
 const char kEnableNevaMediaService[] = "enable-neva-media-service";
 const char kFakeUrlMediaDuration[] = "fake-url-media-duration";
 
+#if defined(USE_NEVA_WEBRTC)
+// Enables platforms to provide h/w accelarated video decoder.
+const char kEnableWebRTCPlatformVideoDecoder[] =
+    "enable-webrtc-platform-video-decoder";
+#endif
+
 }  // namespace switches

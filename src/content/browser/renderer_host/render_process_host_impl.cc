@@ -3498,6 +3498,9 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
     switches::kEnableNevaMediaService,
     switches::kFakeUrlMediaDuration,
 #endif
+#if defined(USE_NEVA_WEBRTC)
+    switches::kEnableWebRTCPlatformVideoDecoder,
+#endif
 #if defined(USE_NEVA_APPRUNTIME)
     switches::kAllowScriptsToCloseWindows,
     switches::kDecodedImageWorkingSetBudgetMB,

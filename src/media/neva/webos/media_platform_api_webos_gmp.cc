@@ -837,6 +837,14 @@ bool MediaPlatformAPIWebOSGmp::MakeLoadData(int64_t start_time, void* data) {
 #if defined(USE_GAV)
     load_data->windowId = const_cast<char*>(get_media_layer_id().c_str());
 #endif
+
+#if defined(USE_NEVA_WEBRTC)
+    // Platform media pipeline uses this flag to move to playing state
+    // immediately after creating the pipeline. Without moving the pipeline
+    // to playing state appsrc element does not consume the data in paused
+    // state in case of live streams.
+    load_data->liveStream = video_config_.is_live_stream();
+#endif
   }
 
   if (audio_config_.IsValidConfig()) {
@@ -850,7 +858,8 @@ bool MediaPlatformAPIWebOSGmp::MakeLoadData(int64_t start_time, void* data) {
   load_data->ptsToDecode = start_time;
 
   VLOG(1) << " Outgoing codec info audio=" << load_data->audioCodec
-          << " video=" << load_data->videoCodec;
+          << " video=" << load_data->videoCodec
+          << " liveStream: " << (load_data->liveStream ? "true" : "false");
 
   return true;
 }

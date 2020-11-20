@@ -25,6 +25,7 @@
 #include "media/blink/neva/video_frame_provider_impl.h"
 #include "media/blink/neva/video_util_neva.h"
 #include "media/neva/media_platform_api.h"
+#include "media/neva/media_preferences.h"
 #include "third_party/blink/public/web/modules/media/webmediaplayer_util.h"
 #include "third_party/blink/public/web/modules/mediastream/web_media_stream_renderer_factory.h"
 #include "third_party/blink/public/web/web_local_frame.h"
@@ -84,6 +85,8 @@ WebMediaPlayerWebRTC::WebMediaPlayerWebRTC(
       additional_contents_scale_(params_neva->additional_contents_scale()),
       main_task_runner_(base::ThreadTaskRunnerHandle::Get()),
       app_id_(params_neva->application_id().Utf8()),
+      create_media_platform_api_cb_(
+          params_neva->override_create_media_platform_api()),
       create_video_window_cb_(params_neva->get_create_video_window_callback()),
       weak_factory_this_(this) {
   LOG(INFO) << __func__ << " delegate_id_: " << delegate_id_;
@@ -440,15 +443,31 @@ void WebMediaPlayerWebRTC::StartMediaPipeline(
   if (media_platform_api_)
     return;
 
-  // Create MediaAPIs Wrapper
-  media_platform_api_ = media::MediaPlatformAPI::Create(
-      media_task_runner_, client_->IsVideo(), app_id_,
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnNaturalVideoSizeChanged),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnResumed),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnSuspended),
-      BIND_TO_RENDER_LOOP_VIDEO_FRAME_PROVIDER(
-          &VideoFrameProviderImpl::ActiveRegionChanged),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnError));
+  // Create MediaPlatformAPI
+  if (create_media_platform_api_cb_) {
+    media_platform_api_ = create_media_platform_api_cb_.Run(
+        media_task_runner_, client_->IsVideo(), app_id_,
+        BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnNaturalVideoSizeChanged),
+        BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnResumed),
+        BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnSuspended),
+        BIND_TO_RENDER_LOOP_VIDEO_FRAME_PROVIDER(
+            &VideoFrameProviderImpl::ActiveRegionChanged),
+        BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnError));
+  } else {
+    media_platform_api_ = media::MediaPlatformAPI::Create(
+        media_task_runner_, client_->IsVideo(), app_id_,
+        BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnNaturalVideoSizeChanged),
+        BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnResumed),
+        BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnSuspended),
+        BIND_TO_RENDER_LOOP_VIDEO_FRAME_PROVIDER(
+            &VideoFrameProviderImpl::ActiveRegionChanged),
+        BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnError));
+  }
+
+  media_platform_api_->SetMediaPreferences(
+      MediaPreferences::Get()->GetRawMediaPreferences());
+  media_platform_api_->SetMediaCodecCapabilities(
+      MediaPreferences::Get()->GetMediaCodecCapabilities());
 
   if (video_window_info_)
     media_platform_api_->SetMediaLayerId(video_window_info_->native_window_id);

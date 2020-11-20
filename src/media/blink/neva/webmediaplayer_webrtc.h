@@ -200,6 +200,8 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerWebRTC
 
   bool has_activation_permit_ = false;
 
+  CreateMediaPlatformAPICB create_media_platform_api_cb_;
+
   WebMediaPlayerParamsNeva::CreateVideoWindowCB create_video_window_cb_;
   base::Optional<ui::VideoWindowInfo> video_window_info_ = base::nullopt;
   mojo::Remote<ui::mojom::VideoWindow> video_window_remote_;

@@ -170,6 +170,8 @@ struct VideoDecoderConfig {
   EncryptionScheme encryption_scheme;
   VideoColorSpace color_space_info;
   HDRMetadata? hdr_metadata;
+  [EnableIf=use_neva_media]
+  bool is_live_stream;
 };
 
 // Native struct media::SubsampleEntry;

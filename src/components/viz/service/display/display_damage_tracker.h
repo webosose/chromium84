@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/observer_list.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/surfaces/surface_id.h"
@@ -37,7 +38,7 @@ class VIZ_SERVICE_EXPORT DisplayDamageTracker : public SurfaceObserver {
                                     bool is_first_contentful_paint,
                                     bool did_reset_container_state,
                                     bool seen_first_contentful_paint) {}
-    virtual void OnNewRootSurface() {}
+    virtual void NotifyPendingActivation() {}
 #endif
   };
 
@@ -72,6 +73,11 @@ class VIZ_SERVICE_EXPORT DisplayDamageTracker : public SurfaceObserver {
   bool root_frame_missing() const { return root_frame_missing_; }
   bool IsRootSurfaceValid() const;
 
+#if defined(USE_NEVA_APPRUNTIME)
+  void SetFrameSinkId(const FrameSinkId&);
+  void MaybeNotifyPendingActivations();
+#endif
+
   bool expecting_root_surface_damage_because_of_resize() const {
     return expecting_root_surface_damage_because_of_resize_;
   }
@@ -94,6 +100,7 @@ class VIZ_SERVICE_EXPORT DisplayDamageTracker : public SurfaceObserver {
                             bool is_first_contentful_paint,
                             bool did_reset_container_state,
                             bool seen_first_contentful_paint) override;
+  bool SurfaceContainsFrameSink(const SurfaceId&, const FrameSinkId&) const;
 #endif
 
  protected:
@@ -122,6 +129,10 @@ class VIZ_SERVICE_EXPORT DisplayDamageTracker : public SurfaceObserver {
   SurfaceAggregator* const aggregator_;
 
   bool root_frame_missing_ = true;
+#if defined(USE_NEVA_APPRUNTIME)
+  FrameSinkId frame_sink_id_;
+  base::flat_set<SurfaceId> pending_activations_;
+#endif
 
   bool expecting_root_surface_damage_because_of_resize_ = false;
 

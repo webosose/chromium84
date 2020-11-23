@@ -53,7 +53,7 @@ class VIZ_SERVICE_EXPORT DisplayScheduler : public DisplaySchedulerBase {
                           bool is_first_contentful_paint,
                           bool did_reset_container_state,
                           bool seen_first_contentful_paint) override;
-  void OnNewRootSurface() override;
+  void NotifyPendingActivation() override;
   void RenderProcessGone() override;
 #endif
 
@@ -146,7 +146,6 @@ class VIZ_SERVICE_EXPORT DisplayScheduler : public DisplaySchedulerBase {
   bool first_surface_activated_ = false;
   bool pending_first_surface_activation_ = false;
   base::CancelableOnceClosure notify_first_activation_eventually_task_;
-  base::flat_map<SurfaceId, FrameSinkId> pending_activations_;
 #endif
 
   base::WeakPtrFactory<DisplayScheduler> weak_ptr_factory_{this};

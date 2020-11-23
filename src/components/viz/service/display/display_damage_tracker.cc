@@ -42,13 +42,31 @@ void DisplayDamageTracker::SetRootFrameMissing(bool missing) {
   NotifyRootFrameMissing(missing);
 }
 
+#if defined(USE_NEVA_APPRUNTIME)
+void DisplayDamageTracker::SetFrameSinkId(const FrameSinkId& frame_sink_id) {
+  DCHECK(!frame_sink_id_.is_valid());
+  frame_sink_id_ = frame_sink_id;
+}
+
+void DisplayDamageTracker::MaybeNotifyPendingActivations() {
+  bool was_activated = false;
+  for (auto const& surface : pending_activations_) {
+    if (surface_manager_->IsOrContainsFrameSink(frame_sink_id_,
+                                                surface.frame_sink_id())) {
+      was_activated = true;
+      pending_activations_.erase(surface);
+    }
+  }
+  if (was_activated) {
+    for (auto& observer : observers_)
+      observer.NotifyPendingActivation();
+  }
+}
+#endif
+
 void DisplayDamageTracker::SetNewRootSurface(const SurfaceId& root_surface_id) {
   TRACE_EVENT0("viz", "DisplayDamageTracker::SetNewRootSurface");
   root_surface_id_ = root_surface_id;
-
-  for (auto& observer : observers_)
-    observer.OnNewRootSurface();
-
   UpdateRootFrameMissing();
   SetRootSurfaceDamaged();
 }
@@ -153,6 +171,11 @@ void DisplayDamageTracker::OnSurfaceActivatedEx(
     bool is_first_contentful_paint,
     bool did_reset_container_state,
     bool seen_first_contentful_paint) {
+  if (!surface_manager_->IsOrContainsFrameSink(frame_sink_id_,
+                                               surface_id.frame_sink_id())) {
+    pending_activations_.insert(surface_id);
+    return;
+  }
   for (auto& observer : observers_) {
     observer.OnSurfaceActivated(surface_id, is_first_contentful_paint,
                                 did_reset_container_state,
@@ -212,6 +235,9 @@ void DisplayDamageTracker::OnSurfaceDamageExpected(const SurfaceId& surface_id,
 void DisplayDamageTracker::UpdateRootFrameMissing() {
   Surface* surface = surface_manager_->GetSurfaceForId(root_surface_id_);
   SetRootFrameMissing(!surface || !surface->HasActiveFrame());
+#if defined(USE_NEVA_APPRUNTIME)
+  MaybeNotifyPendingActivations();
+#endif
 }
 
 void DisplayDamageTracker::RunDrawCallbacks() {

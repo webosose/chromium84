@@ -72,6 +72,8 @@ class VIZ_SERVICE_EXPORT SurfaceManager {
     use_viz_fmp_with_timeout_ = use_viz_fmp_with_timeout;
   }
   bool use_viz_fmp_with_timeout() const { return use_viz_fmp_with_timeout_; }
+  bool IsOrContainsFrameSink(const FrameSinkId& parent_frame_sink_id,
+                             const FrameSinkId& child_frame_sink_id) const;
 #endif
 
   // Sets an alternative base::TickClock to pass into surfaces for surface

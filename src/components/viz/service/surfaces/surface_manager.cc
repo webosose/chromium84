@@ -469,6 +469,23 @@ void SurfaceManager::SurfaceActivated(Surface* surface) {
 }
 
 #if defined(USE_NEVA_APPRUNTIME)
+bool SurfaceManager::IsOrContainsFrameSink(
+    const FrameSinkId& parent_frame_sink_id,
+    const FrameSinkId& search_frame_sink_id) const {
+  if (parent_frame_sink_id == search_frame_sink_id)
+    return true;
+  for (auto& reference : references_) {
+    if (reference.first.frame_sink_id() == parent_frame_sink_id) {
+      for (auto& surface_id : reference.second) {
+        if (IsOrContainsFrameSink(surface_id.frame_sink_id(),
+                                  search_frame_sink_id))
+          return true;
+      }
+    }
+  }
+  return false;
+}
+
 void SurfaceManager::SurfaceActivatedEx(Surface* surface,
                                         bool is_first_contentful_paint,
                                         bool did_reset_container_state,

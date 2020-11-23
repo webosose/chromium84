@@ -351,6 +351,9 @@ void Display::Initialize(DisplayClient* client,
 
   damage_tracker_ = std::make_unique<DisplayDamageTracker>(surface_manager_,
                                                            aggregator_.get());
+#if defined(USE_NEVA_APPRUNTIME)
+  damage_tracker_->SetFrameSinkId(frame_sink_id_);
+#endif
   if (scheduler_)
     scheduler_->SetDamageTracker(damage_tracker_.get());
 

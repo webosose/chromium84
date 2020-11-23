@@ -125,11 +125,6 @@ void DisplayScheduler::OnSurfaceActivated(SurfaceId surface_id,
 
     if (!seen_first_surface_activation_) {
       if (seen_first_contentful_paint) {
-        if (damage_tracker_->root_frame_missing()) {
-          pending_activations_[surface_id] = surface_id.frame_sink_id();
-          return;
-        }
-
         // This is likely keep alive app which has recreated window after
         // hiding. In this state DisplayScheduler is waiting for fmp activation
         // but it will never come because renderer has already seen it
@@ -197,14 +192,11 @@ void DisplayScheduler::OnSurfaceActivated(SurfaceId surface_id,
   }
 }
 
-void DisplayScheduler::OnNewRootSurface() {
-  for (auto const& it : pending_activations_) {
-    if (visible_ && !first_surface_activated_) {
-      pending_activations_.erase(it.first);
-      seen_first_surface_activation_ = true;
-      first_surface_activated_ = true;
-      pending_first_surface_activation_ = false;
-    }
+void DisplayScheduler::NotifyPendingActivation() {
+  if (visible_ && !first_surface_activated_) {
+    seen_first_surface_activation_ = true;
+    first_surface_activated_ = true;
+    pending_first_surface_activation_ = false;
   }
 }
 

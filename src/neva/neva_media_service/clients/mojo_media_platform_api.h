@@ -124,7 +124,7 @@ class COMPONENT_EXPORT(NEVA_MEDIA_SERVICE) MojoMediaPlatformAPI
   bool is_video_;
   std::string app_id_;
   mojo::PendingRemote<mojom::MediaServiceProvider> pending_provider_;
-  const scoped_refptr<base::SingleThreadTaskRunner>& media_task_runner_;
+  const scoped_refptr<base::SingleThreadTaskRunner> media_task_runner_;
   std::atomic<base::TimeDelta> client_current_time_ = {base::TimeDelta()};
 
   media::PipelineStatusCB init_cb_;

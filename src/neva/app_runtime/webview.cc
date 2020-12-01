@@ -149,11 +149,20 @@ WebView::WebView(int width, int height, WebViewProfile* profile)
   web_contents_->SyncRendererPrefs();
   web_preferences_.reset(
       new content::WebPreferences(rvh->GetWebkitPreferences()));
+}
 
+WebView::~WebView() {
+  PushCORBDisabledToIOThread(false);
+  web_contents_->SetDelegate(nullptr);
+}
+
+void WebView::CreateRenderView()
+{
   if (web_contents_) {
     // This code ensures that renderer proccess will be created before the first
     // neva_app_runtime::WebView API call which relies on fact that
     // renderer process has been already created and initialized
+    content::RenderViewHost* rvh = web_contents_->GetRenderViewHost();
     if (!rvh->IsRenderViewLive()) {
       content::WebContentsImpl* webcontents_impl =
           static_cast<content::WebContentsImpl*>(web_contents_.get());
@@ -164,11 +173,6 @@ WebView::WebView(int width, int height, WebViewProfile* profile)
           content::FrameReplicationState());
     }
   }
-}
-
-WebView::~WebView() {
-  PushCORBDisabledToIOThread(false);
-  web_contents_->SetDelegate(nullptr);
 }
 
 void WebView::SetDelegate(WebViewDelegate* delegate) {

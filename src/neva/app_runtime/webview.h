@@ -87,6 +87,7 @@ class WebView : public content::WebContentsDelegate,
   WebView(int width, int height, WebViewProfile* profile = nullptr);
   ~WebView() override;
 
+  void CreateRenderView();
   void SetDelegate(WebViewDelegate* delegate);
   void SetControllerDelegate(WebViewControllerDelegate* delegate);
 

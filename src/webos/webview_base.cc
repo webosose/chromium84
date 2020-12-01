@@ -144,6 +144,8 @@ void WebViewBase::Initialize(const std::string& app_id,
   SetV8ExtraFlags(v8_extra_flags);
   SetUseNativeScroll(use_native_scroll);
 
+  webview_->CreateRenderView();
+
   NOTIMPLEMENTED() << " native scrolls, allow mouse on/off event";
 }
 

@@ -190,8 +190,6 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
   void OnBecamePersistentVideo(bool value) override;
 
 #if defined(USE_NEVA_WEBRTC)
-  void EnqueueHoleFrame(scoped_refptr<media::VideoFrame>& hole_frame);
-
   virtual bool HandleVideoFrame(
       const scoped_refptr<media::VideoFrame>& video_frame) {
     return false;

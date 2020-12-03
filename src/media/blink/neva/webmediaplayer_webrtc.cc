@@ -92,12 +92,6 @@ WebMediaPlayerWebRTC::WebMediaPlayerWebRTC(
   video_frame_provider_impl_->SetWebLocalFrame(frame);
   video_frame_provider_impl_->SetWebMediaPlayerClient(client);
 
-  base::Optional<bool> is_audio_disabled = client_->IsAudioDisabled();
-  if (is_audio_disabled.has_value())
-    SetDisableAudio(*is_audio_disabled);
-
-  SetRenderMode(client_->RenderMode());
-
   delegate_->DidMediaCreated(delegate_id_,
                              !params_neva->use_unlimited_media_policy());
 }
@@ -200,11 +194,6 @@ void WebMediaPlayerWebRTC::OnFrameShown() {
   ResumeInternal();
 }
 
-void WebMediaPlayerWebRTC::OnFrameClosed() {
-  LOG(INFO) << __func__ << " : delegate_id_: " << delegate_id_;
-  blink::WebMediaPlayerMS::OnFrameClosed();
-}
-
 void WebMediaPlayerWebRTC::OnMediaActivationPermitted() {
   // If we already have activation permit, just skip.
   if (has_activation_permit_) {
@@ -232,13 +221,8 @@ void WebMediaPlayerWebRTC::OnVideoWindowCreated(
   video_frame_provider_impl_->SetOverlayPlaneId(info.window_id);
   if (media_platform_api_)
     media_platform_api_->SetMediaLayerId(info.native_window_id);
-  if (!natural_video_size_.IsEmpty())
-    video_window_remote_->SetNaturalVideoSize(natural_video_size_);
 
-  main_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&WebMediaPlayerWebRTC::ContinuePlayerWithWindowId,
-                     weak_ptr_this_));
+  ContinuePlayerWithWindowId();
 }
 
 void WebMediaPlayerWebRTC::OnVideoWindowDestroyed() {
@@ -292,25 +276,27 @@ bool WebMediaPlayerWebRTC::HandleVideoFrame(
   // WebMediaPlayerMS class for rendering using chromium video layer.
   // For remote streams we pass the buffer to platform media pipeline
   // for decoding and rendering.
-  bool encoded = video_frame->metadata()->GetInteger(
-      media::VideoFrameMetadata::CODEC_ID, reinterpret_cast<int*>(&codec_));
-  if (!encoded) {
-    if (pipeline_running_ && media_platform_api_) {
-      main_task_runner_->PostTask(
-          FROM_HERE,
-          base::BindOnce(&WebMediaPlayerWebRTC::ReleaseMediaPlatformAPI,
-                         weak_ptr_this_));
-    }
+  int video_codec = 0;
+  bool is_encoded = video_frame->metadata()->GetInteger(
+      VideoFrameMetadata::CODEC_ID, &video_codec);
+  CompositorType compositor_type = (is_encoded ?
+      CompositorType::kVideoFrameProviderImpl :
+      CompositorType::kWebMediaPlayerMSCompositor);
+  if (compositor_type_ != compositor_type)
+    compositor_type_ = compositor_type;
+
+  if (!is_encoded)
     return false;
+
+  if (media_player_status_cb_.is_null() &&
+      !video_frame->metadata()->media_player_status_cb.is_null()) {
+    media_player_status_cb_ =
+        video_frame->metadata()->media_player_status_cb;
   }
 
-  if (is_suspended_)
+  if (is_suspended_) {
+    pending_encoded_frames_.clear();
     return true;
-
-  if (!has_first_frame_) {
-    has_first_frame_ = true;
-    handle_encoded_frames_ = true;
-    EnqueueHoleFrame(video_frame);
   }
 
   main_task_runner_->PostTask(
@@ -320,7 +306,7 @@ bool WebMediaPlayerWebRTC::HandleVideoFrame(
 }
 
 void WebMediaPlayerWebRTC::TriggerResize() {
-  if (handle_encoded_frames_) {
+  if (compositor_type_ == CompositorType::kVideoFrameProviderImpl) {
     blink::WebSize natural_size = NaturalSize();
     gfx::Size gfx_size(natural_size.width, natural_size.height);
 
@@ -339,46 +325,37 @@ void WebMediaPlayerWebRTC::OnFirstFrameReceived(
     bool is_opaque) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  if (handle_encoded_frames_) {
-    if (is_loading_) {
-      is_loading_ = false;
-      delegate_->DidMediaActivated(delegate_id_);
-    }
-
-    has_first_frame_ = true;
-
-    OnRotationChanged(video_rotation);
-    OnOpacityChanged(is_opaque);
-
-    SetReadyState(WebMediaPlayer::kReadyStateHaveMetadata);
-    SetReadyState(WebMediaPlayer::kReadyStateHaveEnoughData);
-
-    TriggerResize();
-    ResetCanvasCache();
-    return;
+  if (is_loading_) {
+    is_loading_ = false;
+    delegate_->DidMediaActivated(delegate_id_);
   }
 
-  blink::WebMediaPlayerMS::OnFirstFrameReceived(video_rotation, is_opaque);
+  has_first_frame_ = true;
+
+  OnRotationChanged(video_rotation);
+  OnOpacityChanged(is_opaque);
+
+  SetReadyState(WebMediaPlayer::kReadyStateHaveMetadata);
+  SetReadyState(WebMediaPlayer::kReadyStateHaveEnoughData);
+
+  TriggerResize();
+  ResetCanvasCache();
 }
 
 void WebMediaPlayerWebRTC::OnRotationChanged(VideoRotation video_rotation) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  if (handle_encoded_frames_) {
-    video_transformation_ = {video_rotation, 0};
+  VLOG(1) << __func__;
 
-    if (!bridge_) {
-      // Keep the old |video_layer_| alive until SetCcLayer() is called with
-      // a new pointer, as it may use the pointer from the last call.
-      auto new_video_layer = cc::VideoLayer::Create(
-          video_frame_provider_impl_.get(), video_rotation);
-      get_client()->SetCcLayer(new_video_layer.get());
-      video_layer_ = std::move(new_video_layer);
-    }
-    return;
-  }
+  video_rotation_ = video_rotation;
+  video_transformation_ = {video_rotation_, 0};
 
-  blink::WebMediaPlayerMS::OnRotationChanged(video_rotation);
+  CreateVideoLayerInternal();
+
+  // Request first frame for video
+  if (!media_player_status_cb_.is_null())
+    media_player_status_cb_.Run(
+        VideoFrameMetadata::StatusType::kKeyFrameRequest);
 }
 
 void WebMediaPlayerWebRTC::HandleEncodedFrame(
@@ -392,18 +369,26 @@ void WebMediaPlayerWebRTC::HandleEncodedFrame(
     return;
   }
 
-  if (!media_platform_api_)
-    StartMediaPipeline(encoded_frame);
+  StartMediaPipeline(encoded_frame);
 
   {
     base::AutoLock auto_lock(frame_lock_);
 
-    // While pipeline is initializing all pending encoded frames
-    // will be removed after receiving a new key frame.
-    if (encoded_frame->metadata()->IsTrue(
-            media::VideoFrameMetadata::KEY_FRAME) &&
-        !pipeline_running_)
+    // While pipeline is initializing all pending encoded frames will be
+    // removed after receiving a new key frame. So, set correct timestamp
+    const base::TimeDelta incoming_timestamp = encoded_frame->timestamp();
+    if (!pipeline_running_ &&
+        encoded_frame->metadata()->IsTrue(VideoFrameMetadata::KEY_FRAME)) {
+      start_timestamp_ = incoming_timestamp;
+      encoded_frame->set_timestamp(base::TimeDelta());
       pending_encoded_frames_.clear();
+    } else {
+      if (start_timestamp_ == media::kNoTimestamp)
+        start_timestamp_ = incoming_timestamp;
+      const base::TimeDelta elapsed_timestamp =
+          incoming_timestamp - start_timestamp_;
+      encoded_frame->set_timestamp(elapsed_timestamp);
+    }
     pending_encoded_frames_.push_back(encoded_frame);
   }
 
@@ -411,16 +396,13 @@ void WebMediaPlayerWebRTC::HandleEncodedFrame(
     media_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&WebMediaPlayerWebRTC::OnPipelineFeed, weak_ptr_this_));
-    EnqueueHoleFrame(encoded_frame);
   }
 }
 
-void WebMediaPlayerWebRTC::StartMediaPipeline(
-    const scoped_refptr<media::VideoFrame>& input_frame) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+void WebMediaPlayerWebRTC::CreateMediaPlatformAPI() {
+  LOG(INFO) << __func__;
 
-  if (media_platform_api_)
-    return;
+  DestroyMediaPlatformAPI();
 
   // Create MediaPlatformAPI
   if (create_media_platform_api_cb_) {
@@ -443,6 +425,9 @@ void WebMediaPlayerWebRTC::StartMediaPipeline(
         BIND_TO_RENDER_LOOP(&WebMediaPlayerWebRTC::OnPipelineError));
   }
 
+  if (!media_platform_api_)
+    return;
+
   media_platform_api_->SetMediaPreferences(
       MediaPreferences::Get()->GetRawMediaPreferences());
   media_platform_api_->SetMediaCodecCapabilities(
@@ -457,6 +442,51 @@ void WebMediaPlayerWebRTC::StartMediaPipeline(
                           media_platform_api_),
       base::BindRepeating(&media::MediaPlatformAPI::SetVisibility,
                           media_platform_api_)));
+
+  SetDisableAudio(true);
+
+  SetRenderMode(get_client()->RenderMode());
+}
+
+void WebMediaPlayerWebRTC::DestroyMediaPlatformAPI() {
+  LOG(INFO) << __func__;
+
+  if (!media_platform_api_)
+    return;
+
+  media_platform_api_->Finalize();
+
+  // Make sure to stop the pipeline so there's no more media threads running.
+  base::WaitableEvent event(base::WaitableEvent::ResetPolicy::AUTOMATIC,
+                            base::WaitableEvent::InitialState::NOT_SIGNALED);
+  media_task_runner_->PostTask(
+      FROM_HERE,
+      base::Bind(&base::WaitableEvent::Signal, base::Unretained(&event)));
+  event.Wait();
+
+  media_platform_api_ = nullptr;
+}
+
+void WebMediaPlayerWebRTC::StartMediaPipeline(
+    const scoped_refptr<media::VideoFrame>& input_frame) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  VideoCodec video_codec = media::kUnknownVideoCodec;
+  input_frame->metadata()->GetInteger(VideoFrameMetadata::CODEC_ID,
+                                      reinterpret_cast<int*>(&video_codec));
+  if (media_platform_api_ && video_codec_ == video_codec)
+    return;
+
+  if (!input_frame->metadata()->IsTrue(VideoFrameMetadata::KEY_FRAME)) {
+    if (!media_player_status_cb_.is_null())
+      media_player_status_cb_.Run(
+          VideoFrameMetadata::StatusType::kKeyFrameRequest);
+    return;
+  }
+
+  video_codec_ = video_codec;
+
+  CreateMediaPlatformAPI();
 
   media_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&WebMediaPlayerWebRTC::InitMediaPlatformAPI,
@@ -495,27 +525,10 @@ void WebMediaPlayerWebRTC::ReleaseMediaPlatformAPI() {
 
   compositor_->ReplaceCurrentFrameWithACopy();
 
-  if (!media_platform_api_)
-    return;
-
-  handle_encoded_frames_ = false;
-  media_platform_api_->Finalize();
-
-  WebRtcPassThroughVideoDecoder::SetMediaDecoderAvailable(true);
-
-  // Make sure to stop the pipeline so there's no more media threads running.
-  base::WaitableEvent event(base::WaitableEvent::ResetPolicy::AUTOMATIC,
-                            base::WaitableEvent::InitialState::NOT_SIGNALED);
-  media_task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&base::WaitableEvent::Signal, base::Unretained(&event)));
-  event.Wait();
-
-  media_platform_api_ = nullptr;
+  DestroyMediaPlatformAPI();
 
   pipeline_running_ = false;
   pipeline_status_ = media::PIPELINE_OK;
-  has_first_frame_ = false;
 }
 
 void WebMediaPlayerWebRTC::OnPipelineFeed() {
@@ -576,6 +589,10 @@ void WebMediaPlayerWebRTC::ResumeInternal() {
 
   is_suspended_ = false;
 
+  if (!media_player_status_cb_.is_null())
+    media_player_status_cb_.Run(
+        VideoFrameMetadata::StatusType::kKeyFrameRequest);
+
   media::RestorePlaybackMode restore_playback_mode =
       (status_on_suspended_ == StatusOnSuspended::PausedStatus)
           ? media::RestorePlaybackMode::kPaused
@@ -590,6 +607,26 @@ void WebMediaPlayerWebRTC::ResumeInternal() {
   }
 }
 
+void WebMediaPlayerWebRTC::CreateVideoLayerInternal() {
+  VLOG(1) << __func__;
+
+  get_client()->SetCcLayer(nullptr);
+
+  if (video_layer_)
+    video_layer_->StopUsingProvider();
+
+  if (compositor_type_ == CompositorType::kWebMediaPlayerMSCompositor) {
+    ReleaseMediaPlatformAPI();
+    video_layer_ = cc::VideoLayer::Create(compositor_.get(), video_rotation_);
+  } else {
+    video_layer_ = cc::VideoLayer::Create(video_frame_provider_impl_.get(),
+                                          video_rotation_);
+  }
+
+  video_layer_->SetContentsOpaque(opaque_);
+  get_client()->SetCcLayer(video_layer_.get());
+}
+
 void WebMediaPlayerWebRTC::OnLoadPermitted() {
   // call base-class implementation
   if (!EnsureVideoWindowCreated()) {
@@ -597,10 +634,7 @@ void WebMediaPlayerWebRTC::OnLoadPermitted() {
     return;
   }
 
-  main_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&WebMediaPlayerWebRTC::ContinuePlayerWithWindowId,
-                     weak_ptr_this_));
+  ContinuePlayerWithWindowId();
 }
 
 void WebMediaPlayerWebRTC::OnNaturalVideoSizeChanged(
@@ -608,8 +642,14 @@ void WebMediaPlayerWebRTC::OnNaturalVideoSizeChanged(
   VLOG(1) << __func__
           << " natural_video_size: " << natural_video_size.ToString();
 
+  if (natural_video_size_ == natural_video_size)
+    return;
+
   natural_video_size_ = natural_video_size;
+  video_frame_provider_impl_->SetNaturalVideoSize(natural_video_size_);
+
   geometry_update_helper_->SetNaturalVideoSize(natural_video_size_);
+
   if (video_window_remote_)
     video_window_remote_->SetNaturalVideoSize(natural_video_size_);
 }
@@ -639,8 +679,6 @@ void WebMediaPlayerWebRTC::OnResumed() {
 
 void WebMediaPlayerWebRTC::OnSuspended() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  WebRtcPassThroughVideoDecoder::SetMediaDecoderAvailable(true);
 
   delegate_->DidMediaSuspended(delegate_id_);
 }
@@ -689,6 +727,8 @@ void WebMediaPlayerWebRTC::OnMediaPlatformAPIInitialized(
     PipelineStatus status) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+  LOG(INFO) << __func__ << " status : " << status;
+
   if (is_destroying_ || !media_platform_api_) {
     LOG(ERROR) << __func__ << " Is destroying";
     return;
@@ -698,15 +738,6 @@ void WebMediaPlayerWebRTC::OnMediaPlatformAPIInitialized(
   pipeline_status_ = status;
 
   media_platform_api_->SetPlaybackRate(1.0f);
-
-  scoped_refptr<media::VideoFrame> encoded_frame;
-  {
-    base::AutoLock auto_lock(frame_lock_);
-    DCHECK(!pending_encoded_frames_.empty());
-    encoded_frame = pending_encoded_frames_.back();
-  }
-
-  EnqueueHoleFrame(encoded_frame);
 
   media_task_runner_->PostTask(
       FROM_HERE,
@@ -725,8 +756,10 @@ void WebMediaPlayerWebRTC::OnPipelineError(PipelineStatus status) {
   if (is_destroying_)
     return;
 
-  if (status == media::DECODER_ERROR_RESOURCE_IS_RELEASED)
-    WebRtcPassThroughVideoDecoder::SetMediaDecoderAvailable(false);
+  if (!media_player_status_cb_.is_null() &&
+      (status == PIPELINE_ERROR_ABORT ||
+       status == DECODER_ERROR_RESOURCE_IS_RELEASED))
+    media_player_status_cb_.Run(VideoFrameMetadata::StatusType::kPipelineError);
 
   {
     base::AutoLock auto_lock(frame_lock_);
@@ -743,34 +776,10 @@ void WebMediaPlayerWebRTC::OnPipelineError(PipelineStatus status) {
   RepaintInternal();
 }
 
-void WebMediaPlayerWebRTC::EnqueueHoleFrame(
-    const scoped_refptr<media::VideoFrame>& input_frame) {
-  if (frame_size_ == input_frame->natural_size())
-    return;
-
-  frame_size_ = input_frame->natural_size();
-
-  scoped_refptr<media::VideoFrame> video_frame =
-      media::VideoFrame::CreateTransparentFrame(frame_size_);
-
-  if (video_frame.get()) {
-    video_frame->set_timestamp(input_frame->timestamp());
-
-    // Copy all metadata to the video frame.
-    video_frame->metadata()->MergeMetadataFrom(input_frame->metadata());
-
-    // WebMediaPlayerMSCompositor::EnqueueFrame needs VideoFrame to continue
-    // the webrtc video pipeline. So we pass hole frame to the same.
-    blink::WebMediaPlayerMS::EnqueueHoleFrame(video_frame);
-
-    RepaintInternal();
-  }
-}
-
 VideoDecoderConfig WebMediaPlayerWebRTC::GetVideoConfig(
     const scoped_refptr<media::VideoFrame>& video_frame) {
   VideoCodecProfile profile = media::VIDEO_CODEC_PROFILE_UNKNOWN;
-  switch (codec_) {
+  switch (video_codec_) {
     case media::kCodecH264:
       profile = media::H264PROFILE_MIN;
       break;
@@ -785,11 +794,11 @@ VideoDecoderConfig WebMediaPlayerWebRTC::GetVideoConfig(
       NOTREACHED();
       break;
   }
-  LOG(INFO) << __func__ << ", codec: " << codec_
-            << ", name: " << media::GetCodecName(codec_);
+  LOG(INFO) << __func__ << ", codec: " << video_codec_
+            << ", name: " << media::GetCodecName(video_codec_);
 
   media::VideoDecoderConfig video_config(
-      codec_, profile, media::VideoDecoderConfig::AlphaMode::kIsOpaque,
+      video_codec_, profile, media::VideoDecoderConfig::AlphaMode::kIsOpaque,
       media::VideoColorSpace(), media::kNoTransformation,
       video_frame->coded_size(), video_frame->visible_rect(),
       video_frame->natural_size(), media::EmptyExtraData(),

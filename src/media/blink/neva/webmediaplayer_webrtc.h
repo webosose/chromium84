@@ -90,7 +90,6 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerWebRTC
   // WebMediaPlayerDelegate::Observer interface stubs
   void OnFrameHidden() override;
   void OnFrameShown() override;
-  void OnFrameClosed() override;
   void OnVolumeMultiplierUpdate(double multiplier) override {}
   void OnBecamePersistentVideo(bool value) override {}
   void OnMediaActivationPermitted() override;
@@ -121,7 +120,16 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerWebRTC
     PausedStatus,
   };
 
+  enum class CompositorType {
+    kUnknown = -1,
+    kWebMediaPlayerMSCompositor = 0,
+    kVideoFrameProviderImpl = 1,
+  };
+
   void HandleEncodedFrame(const scoped_refptr<media::VideoFrame>& frame);
+
+  void CreateMediaPlatformAPI();
+  void DestroyMediaPlatformAPI();
 
   void StartMediaPipeline(const scoped_refptr<media::VideoFrame>& input_frame);
   void InitMediaPlatformAPI(
@@ -136,6 +144,7 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerWebRTC
 
   void SuspendInternal();
   void ResumeInternal();
+  void CreateVideoLayerInternal();
 
   void OnLoadPermitted();
   void OnNaturalVideoSizeChanged(const gfx::Size& natural_video_size);
@@ -148,10 +157,13 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerWebRTC
   void OnMediaPlatformAPIInitialized(PipelineStatus status);
   void OnPipelineError(PipelineStatus status);
 
-  void EnqueueHoleFrame(const scoped_refptr<media::VideoFrame>& output_frame);
   VideoDecoderConfig GetVideoConfig(
       const scoped_refptr<media::VideoFrame>& video_frame);
   std::unique_ptr<VideoFrameProviderImpl> video_frame_provider_impl_;
+
+  CompositorType compositor_type_ = CompositorType::kUnknown;
+
+  media::VideoRotation video_rotation_ = media::VIDEO_ROTATION_0;
 
   const gfx::PointF additional_contents_scale_;
 
@@ -184,17 +196,22 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerWebRTC
   base::Lock frame_lock_;
   std::vector<scoped_refptr<media::VideoFrame>> pending_encoded_frames_;
 
-  VideoCodec codec_ = media::kUnknownVideoCodec;
+  // Timestamp of the first received frame.
+  base::TimeDelta start_timestamp_ = media::kNoTimestamp;
+
+  VideoCodec video_codec_ = media::kUnknownVideoCodec;
 
   // Whether or not the pipeline is running.
   bool pipeline_running_ = false;
   bool is_destroying_ = false;
 
-  bool handle_encoded_frames_ = false;
-
   bool has_activation_permit_ = false;
 
   CreateMediaPlatformAPICB create_media_platform_api_cb_;
+
+  // Callback to notify media player status or request to decoder
+  base::RepeatingCallback<void(VideoFrameMetadata::StatusType)>
+      media_player_status_cb_;
 
   WebMediaPlayerParamsNeva::CreateVideoWindowCB create_video_window_cb_;
   base::Optional<ui::VideoWindowInfo> video_window_info_ = base::nullopt;

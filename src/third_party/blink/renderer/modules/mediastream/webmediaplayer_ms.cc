@@ -181,8 +181,19 @@ class WebMediaPlayerMS::FrameDeliverer {
     DCHECK_CALLED_ON_VALID_THREAD(io_thread_checker_);
 
 #if defined(USE_NEVA_WEBRTC)
-    if (render_frame_suspended_ || player_->HandleVideoFrame(frame))
+    if (player_->HandleVideoFrame(frame)) {
+      if (render_frame_suspended_)
+        return;
+      scoped_refptr<media::VideoFrame> video_frame =
+          media::VideoFrame::CreateTransparentFrame(frame->natural_size());
+      if (video_frame.get()) {
+        video_frame->set_timestamp(frame->timestamp());
+        // Copy all metadata to the video frame.
+        video_frame->metadata()->MergeMetadataFrom(frame->metadata());
+        EnqueueFrame(std::move(video_frame));
+      }
       return;
+    }
 #endif
 
 // On Android, stop passing frames.
@@ -1080,19 +1091,6 @@ void WebMediaPlayerMS::OnVolumeMultiplierUpdate(double multiplier) {
 void WebMediaPlayerMS::OnBecamePersistentVideo(bool value) {
   get_client()->OnBecamePersistentVideo(value);
 }
-
-#if defined(USE_NEVA_WEBRTC)
-void WebMediaPlayerMS::EnqueueHoleFrame(
-    scoped_refptr<media::VideoFrame>& hole_frame) {
-  if (frame_deliverer_) {
-    PostCrossThreadTask(
-        *io_task_runner_, FROM_HERE,
-        CrossThreadBindOnce(&FrameDeliverer::EnqueueFrame,
-                            CrossThreadUnretained(frame_deliverer_.get()),
-                            hole_frame));
-  }
-}
-#endif
 
 bool WebMediaPlayerMS::CopyVideoTextureToPlatformTexture(
     gpu::gles2::GLES2Interface* gl,

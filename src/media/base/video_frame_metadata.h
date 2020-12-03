@@ -17,6 +17,10 @@
 #include "media/base/media_export.h"
 #include "media/base/video_transformation.h"
 
+#if defined(USE_NEVA_WEBRTC)
+#include "base/callback.h"
+#endif
+
 namespace gfx {
 class Rect;
 }
@@ -239,6 +243,16 @@ class MEDIA_EXPORT VideoFrameMetadata {
 
   // Merges internal values from |metadata_source|.
   void MergeMetadataFrom(const VideoFrameMetadata* metadata_source);
+
+#if defined(USE_NEVA_WEBRTC)
+  enum class StatusType {
+    kPipelineError,
+    kKeyFrameRequest,
+  };
+
+  // Status or request notify cb to pass to WebMediaPlayerWebRTC
+  base::RepeatingCallback<void(StatusType)> media_player_status_cb;
+#endif
 
  private:
   base::DictionaryValue dictionary_;

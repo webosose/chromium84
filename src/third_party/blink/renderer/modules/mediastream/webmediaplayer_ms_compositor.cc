@@ -99,8 +99,7 @@ scoped_refptr<media::VideoFrame> CopyFrame(
                           new_frame->visible_rect().height(), libyuv::kRotate0,
                           source_pixel_format);
 #if defined(USE_NEVA_WEBRTC)
-  } else if (frame->storage_type() == media::VideoFrame::STORAGE_OPAQUE) {
-    DCHECK(frame->format() == media::PIXEL_FORMAT_UNKNOWN);
+  } else if (frame->storage_type() == media::VideoFrame::STORAGE_OWNED_MEMORY) {
     new_frame = media::VideoFrame::CreateBlackFrame(frame->natural_size());
     new_frame->set_timestamp(frame->timestamp());
 #endif

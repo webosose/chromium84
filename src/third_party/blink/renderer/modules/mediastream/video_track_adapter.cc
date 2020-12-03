@@ -320,6 +320,17 @@ void VideoTrackAdapter::VideoFrameResolutionAdapter::DeliverFrame(
     return;
   }
 
+#if defined(USE_NEVA_WEBRTC)
+  int video_codec = 0;
+  if (frame->metadata()->GetInteger(media::VideoFrameMetadata::CODEC_ID,
+                                    &video_codec)) {
+    // Desired size calculation as done below, is not needed for these
+    // frames containing encoded data. Deliver them from here.
+    DoDeliverFrame(std::move(frame), estimated_capture_time);
+    return;
+  }
+#endif
+
   // If the frame is a texture not backed up by GPU memory we don't apply
   // cropping/scaling and deliver the frame as-is, leaving it up to the
   // destination to rescale it. Otherwise, cropping and scaling is soft-applied

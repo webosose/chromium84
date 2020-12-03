@@ -197,6 +197,9 @@ void VideoFrameMetadata::MergeInternalValuesFrom(const base::Value& in) {
 void VideoFrameMetadata::MergeMetadataFrom(
     const VideoFrameMetadata* metadata_source) {
   dictionary_.MergeDictionary(&metadata_source->dictionary_);
+#if defined(USE_NEVA_WEBRTC)
+  media_player_status_cb = metadata_source->media_player_status_cb;
+#endif
 }
 
 }  // namespace media

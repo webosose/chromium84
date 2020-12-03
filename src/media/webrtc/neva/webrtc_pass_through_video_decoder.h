@@ -27,6 +27,7 @@
 #include "base/time/time.h"
 #include "media/base/media_export.h"
 #include "media/base/video_codecs.h"
+#include "media/base/video_frame_metadata.h"
 #include "media/base/video_types.h"
 #include "third_party/webrtc/api/video/video_codec_type.h"
 #include "third_party/webrtc/api/video_codecs/video_decoder.h"
@@ -44,18 +45,10 @@ class VideoFrame;
 
 class MEDIA_EXPORT WebRtcPassThroughVideoDecoder : public webrtc::VideoDecoder {
  public:
-  class Client {
-   public:
-    virtual bool HasAvailableResources() = 0;
-  };
-
   // Creates and initializes an WebRtcPassThroughVideoDecoder.
   static std::unique_ptr<WebRtcPassThroughVideoDecoder> Create(
       scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
       const webrtc::SdpVideoFormat& format);
-
-  // Sets h/w media decoder resources availibility
-  static void SetMediaDecoderAvailable(bool available);
 
   virtual ~WebRtcPassThroughVideoDecoder();
 
@@ -79,6 +72,9 @@ class MEDIA_EXPORT WebRtcPassThroughVideoDecoder : public webrtc::VideoDecoder {
   void DecodeOnMediaThread();
   void ReturnEncodedFrame(scoped_refptr<media::VideoFrame> encoded_frame);
 
+  // Callback to get the notifications from WebMediaPlayerWebRTC
+  void OnMediaPlayerNotifyCb(VideoFrameMetadata::StatusType type);
+
   // Construction parameters.
   media::VideoCodec video_codec_;
 
@@ -98,11 +94,13 @@ class MEDIA_EXPORT WebRtcPassThroughVideoDecoder : public webrtc::VideoDecoder {
   // timestamp will cause the frame to be dropped when it is output.
   std::deque<base::TimeDelta> decode_timestamps_;
 
-  bool key_frame_required_ = true;
+  std::atomic<bool> key_frame_required_{true};
 
-  bool media_decoder_acquired_ = false;
+  std::atomic<bool> media_decoder_available_{true};
 
-  static bool media_decoder_available_;
+  // Callback to receive media player notifications
+  base::RepeatingCallback<void(VideoFrameMetadata::StatusType)>
+      media_player_status_cb_;
 
   base::WeakPtr<WebRtcPassThroughVideoDecoder> weak_this_;
   base::WeakPtrFactory<WebRtcPassThroughVideoDecoder> weak_this_factory_{this};

@@ -1262,8 +1262,8 @@ class CC_EXPORT LayerTreeHostImpl : public InputHandler,
   RenderingStatsInstrumentation* rendering_stats_instrumentation_;
   MicroBenchmarkControllerImpl micro_benchmark_controller_;
 #if defined(USE_NEVA_APPRUNTIME)
+  base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level_;
   size_t bytes_limit_reduction_factor_ = 1;
-  ManagedMemoryPolicy low_memory_policy_;
   bool seen_first_contentful_paint_ = false;
 #endif
   std::unique_ptr<SynchronousTaskGraphRunner>

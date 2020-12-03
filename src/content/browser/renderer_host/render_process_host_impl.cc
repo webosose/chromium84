@@ -3505,8 +3505,8 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
 #if defined(USE_NEVA_APPRUNTIME)
     switches::kAllowScriptsToCloseWindows,
     switches::kDecodedImageWorkingSetBudgetMB,
-    switches::kMemPressureGPUCacheSizeReductionFactor,
-    switches::kTileManagerLowMemPolicyBytesLimitReductionFactor,
+    cc::switches::kMemPressureGPUCacheSizeReductionFactor,
+    cc::switches::kTileManagerLowMemPolicyBytesLimitReductionFactor,
     cc::switches::kEnableAggressiveReleasePolicy,
 #endif
 #if defined(USE_NEVA_SUSPEND_MEDIA_CAPTURE)

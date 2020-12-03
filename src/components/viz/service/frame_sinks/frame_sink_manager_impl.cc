@@ -297,7 +297,6 @@ void FrameSinkManagerImpl::EvictSurfaces(
       continue;
     it->second->EvictSurface(surface_id.local_surface_id());
   }
-  surface_manager_.GarbageCollectSurfaces();
 }
 
 void FrameSinkManagerImpl::RequestCopyOfOutput(

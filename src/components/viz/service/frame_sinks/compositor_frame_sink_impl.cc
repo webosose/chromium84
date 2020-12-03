@@ -104,9 +104,6 @@ void CompositorFrameSinkImpl::DidDeleteSharedBitmap(const SharedBitmapId& id) {
   support_->DidDeleteSharedBitmap(id);
 }
 
-void CompositorFrameSinkImpl::Invalidate(bool needs_redraw) {
-}
-
 void CompositorFrameSinkImpl::InitializeCompositorFrameSinkType(
     mojom::CompositorFrameSinkType type) {
   support_->InitializeCompositorFrameSinkType(type);

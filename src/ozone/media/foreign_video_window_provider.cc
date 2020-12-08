@@ -305,6 +305,8 @@ base::UnguessableToken ForeignVideoWindowProvider::CreateNativeVideoWindow(
   }
   wl_webos_exported_add_listener(webos_exported, &exported_listener, this);
 
+  display->FlushDisplay();
+
   std::unique_ptr<ForeignVideoWindow> window =
       std::make_unique<ForeignVideoWindow>(this, w, id, params, type,
                                            webos_exported);
@@ -448,6 +450,8 @@ void ForeignVideoWindowProvider::UpdateNativeVideoWindowGeometry(
   if (ori_region)
     wl_region_destroy(ori_region);
 
+  display->FlushDisplay();
+
   w->last_updated_ = base::Time::Now();
 }
 
@@ -590,8 +594,13 @@ void ForeignVideoWindowProvider::NativeVideoWindowSetProperty(
     LOG(ERROR) << __func__ << " failed to find windows for id=" << window_id;
     return;
   }
+
+  ozonewayland::WaylandDisplay* display =
+      ozonewayland::WaylandDisplay::GetInstance();
+
   wl_webos_exported_set_property(win->webos_exported_, name.c_str(),
                                  value.c_str());
+  display->FlushDisplay();
 }
 
 ForeignVideoWindow* ForeignVideoWindowProvider::FindWindow(

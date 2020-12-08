@@ -2028,6 +2028,13 @@ jumbo_source_set("browser") {
     "worker_host/worker_script_loader_factory.h",
   ]
 
+  if (is_webos) {
+    sources += [
+      "media/session/webos/media_session_observer_webos.cc",
+      "media/session/webos/media_session_observer_webos.h",
+    ]
+  }
+
   if (use_neva_media) {
     import ("//content/browser/media/neva/build.gni")
     sources += rebase_path(neva.sources, ".")

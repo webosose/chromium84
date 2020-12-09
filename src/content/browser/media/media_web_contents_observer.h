@@ -196,6 +196,10 @@ class CONTENT_EXPORT MediaWebContentsObserver : public WebContentsObserver {
   void OnMediaSuspended(RenderFrameHost* render_frame_host, int player_id);
 #endif
 
+#if defined(OS_WEBOS)
+  std::map<MediaPlayerId, bool> mute_status_;
+#endif  // defined(OS_WEBOS)
+
   // Tracking variables and associated wake locks for media playback.
   ActiveMediaPlayerMap active_audio_players_;
   ActiveMediaPlayerMap active_video_players_;

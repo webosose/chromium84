@@ -69,6 +69,7 @@ class MediaController : public mojom::MediaController,
 #if defined(OS_WEBOS)
   void MediaSessionRequestChanged(
       const base::Optional<base::UnguessableToken>& request_id) override {}
+  void MediaSessionMutedStatusChanged(bool muted) override {}
 #endif
 
   void SetMediaSession(AudioFocusRequest* session);

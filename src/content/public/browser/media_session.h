@@ -125,6 +125,11 @@ class MediaSession : public media_session::mojom::MediaSession {
   // Exit picture-in-picture.
   void ExitPictureInPicture() override = 0;
 
+#if defined(OS_WEBOS)
+  // Set to mute/unmute based on |mute|
+  void SetMuted(bool mute) override {}
+#endif  // defined(OS_WEBOS)
+
  protected:
   MediaSession() = default;
 };

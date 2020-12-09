@@ -57,6 +57,11 @@ class MediaSessionPlayerObserver {
   // Returns the RenderFrameHost this player observer belongs to. Returns
   // nullptr if unavailable.
   virtual RenderFrameHost* render_frame_host() const = 0;
+
+#if defined(OS_WEBOS)
+  // The given |player_id| has been set to mute/unmute based on |mute|
+  virtual void OnSetMuted(int player_id, bool mute) {}
+#endif  // defined(OS_WEBOS)
 };
 
 }  // namespace content

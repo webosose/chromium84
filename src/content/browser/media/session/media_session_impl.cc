@@ -985,6 +985,10 @@ void MediaSessionImpl::AddObserver(
       actions_.begin(), actions_.end());
   media_session_observer->MediaSessionActionsChanged(actions);
 
+#if defined(OS_WEBOS)
+  media_session_observer->MediaSessionMutedStatusChanged(muted_);
+#endif  // defined(OS_WEBOS)
+
   observers_.Add(std::move(media_session_observer));
 }
 
@@ -1107,6 +1111,23 @@ void MediaSessionImpl::GetMediaImageBitmap(
                          std::move(callback), SkBitmap()),
                      minimum_size_px, desired_size_px));
 }
+
+#if defined(OS_WEBOS)
+void MediaSessionImpl::SetMuted(bool mute) {
+  if (!IsActive())
+    return;
+
+  for (const auto& it : normal_players_)
+    it.first.observer->OnSetMuted(it.first.player_id, mute);
+}
+
+void MediaSessionImpl::OnMediaMutedStatusChanged(bool muted) {
+  for (auto& observer : observers_)
+   observer->MediaSessionMutedStatusChanged(muted);
+
+  muted_ = muted;
+}
+#endif  // defined(OS_WEBOS)
 
 void MediaSessionImpl::AbandonSystemAudioFocusIfNeeded() {
   if (audio_focus_state_ == State::INACTIVE || !normal_players_.empty() ||

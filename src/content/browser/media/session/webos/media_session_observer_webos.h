@@ -38,6 +38,7 @@ class MediaSessionObserverWebOS final
       const base::Optional<media_session::MediaMetadata>& metadata) override;
   void MediaSessionPositionChanged(
       const base::Optional<media_session::MediaPosition>& position) override;
+  void MediaSessionMutedStatusChanged(bool muted) override;
   void MediaSessionActionsChanged(
       const std::vector<media_session::mojom::MediaSessionAction>& action)
       override {}
@@ -53,6 +54,8 @@ class MediaSessionObserverWebOS final
     kPause,
     kNext,
     kPrevious,
+    kMute,
+    kUnmute,
   };
 
   // Registers media session with MCS

@@ -77,6 +77,11 @@ class CONTENT_EXPORT MediaSessionControllersManager {
   void OnPictureInPictureAvailabilityChanged(const MediaPlayerId& id,
                                              bool available);
 
+#if defined(OS_WEBOS)
+  // Called when the media session was muted or unmuted.
+  void OnMediaMutedStatusChanged(const MediaPlayerId& id, bool muted);
+#endif  // defined(OS_WEBOS)
+
  private:
   friend class MediaSessionControllersManagerTest;
 

@@ -268,6 +268,14 @@ class MediaSessionImpl : public MediaSession,
       int desired_size_px,
       GetMediaImageBitmapCallback callback) override;
 
+#if defined(OS_WEBOS)
+  // mute/unmute the media session.
+  CONTENT_EXPORT void SetMuted(bool mute) override;
+
+  // Called when the media mute state of the player has changed.
+  void OnMediaMutedStatusChanged(bool muted);
+#endif  // defined(OS_WEBOS)
+
   const base::UnguessableToken& audio_focus_group_id() const {
     return audio_focus_group_id_;
   }
@@ -430,6 +438,11 @@ class MediaSessionImpl : public MediaSession,
 
   // The last updated |MediaPosition| that was sent to |observers_|.
   base::Optional<media_session::MediaPosition> position_;
+
+#if defined(OS_WEBOS)
+  // The last updated mute status was sent to |observers_|.
+  bool muted_;
+#endif  // defined(OS_WEBOS)
 
   MediaSessionUmaHelper uma_helper_;
 

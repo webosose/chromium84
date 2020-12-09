@@ -63,6 +63,14 @@ class CONTENT_EXPORT MediaSessionController
   bool IsPictureInPictureAvailable(int player_id) const override;
   bool HasVideo(int player_id) const override;
 
+#if defined(OS_WEBOS)
+  // MediaSessionPlayerObserver implementation.
+  void OnSetMuted(int player_id, bool mute) override;
+
+  // Called when the media mute state of the player has changed.
+  void OnMediaMutedStatusChanged(bool muted);
+#endif  // defined(OS_WEBOS)
+
   // Test helpers.
   int get_player_id_for_testing() const { return player_id_; }
 

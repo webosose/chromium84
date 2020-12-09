@@ -153,4 +153,15 @@ void MediaSessionControllersManager::OnPictureInPictureAvailabilityChanged(
   it->second->OnPictureInPictureAvailabilityChanged(available);
 }
 
+#if defined(OS_WEBOS)
+void MediaSessionControllersManager::OnMediaMutedStatusChanged(
+    const MediaPlayerId& id,
+    bool muted) {
+  auto it = controllers_map_.find(id);
+  if (it == controllers_map_.end())
+    return;
+  it->second->OnMediaMutedStatusChanged(muted);
+}
+#endif  // defined(OS_WEBOS)
+
 }  // namespace content

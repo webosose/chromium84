@@ -189,6 +189,10 @@ interface MediaSessionObserver {
   // Called when the Observed MediaSession Request has changed
   [EnableIf=is_webos]
   MediaSessionRequestChanged@5(mojo_base.mojom.UnguessableToken? request_id);
+
+  // Called when the Observed MediaSession has changes Muted status
+  [EnableIf=is_webos]
+  MediaSessionMutedStatusChanged@6(bool muted);
 };
 
 // A MediaSession manages the media session and audio focus for a given
@@ -277,4 +281,8 @@ interface MediaSession {
 
   // Exit picture-in-picture.
   ExitPictureInPicture@16();
+
+  // Set the media session to mute/unmute based on |mute|
+  [EnableIf=is_webos]
+  SetMuted@15(bool mute);
 };

@@ -508,6 +508,7 @@ void WebMediaPlayerNeva::SetVolume(double volume) {
   FUNC_LOG(1);
   volume_ = volume;
   player_api_->SetVolume(volume_);
+  delegate_->DidPlayerMutedStatusChange(delegate_id_, volume == 0.0);
 }
 
 void WebMediaPlayerNeva::SetLatencyHint(double seconds) {
@@ -1399,6 +1400,11 @@ void WebMediaPlayerNeva::OnPlay() {
 void WebMediaPlayerNeva::OnPause() {
   if (client_)
     client_->RequestPause();
+}
+
+void WebMediaPlayerNeva::OnMuted(bool muted) {
+  if (client_)
+    client_->RequestMuted(muted);
 }
 
 void WebMediaPlayerNeva::OnEnterPictureInPicture() {

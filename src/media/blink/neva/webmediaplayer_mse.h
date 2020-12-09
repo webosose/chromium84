@@ -129,6 +129,7 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerMSE
   void OnSuspended();
   void OnNaturalVideoSizeChanged(const gfx::Size& natural_video_size);
   void OnError(PipelineStatus status) override;
+  void OnEnded() override;
 
   void OnMetadata(const PipelineMetadata& metadata) override;
 
@@ -138,6 +139,8 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerMSE
   void OnVideoWindowGeometryChanged(const gfx::Rect& rect) override;
   void OnVideoWindowVisibilityChanged(bool visibility) override;
   // End of ui::mojom::VideoWindowClient
+
+  void OnMediaPositionUpdateTimerFired();
 
   bool EnsureVideoWindowCreated();
   void ContinuePlayerWithWindowId();
@@ -169,6 +172,8 @@ class MEDIA_BLINK_EXPORT WebMediaPlayerMSE
   mojo::Remote<ui::mojom::VideoWindow> video_window_remote_;
   mojo::Receiver<ui::mojom::VideoWindowClient> video_window_client_receiver_{
       this};
+
+  base::RepeatingTimer media_position_update_timer_;
 
   std::unique_ptr<media::VideoHoleGeometryUpdateHelper> geometry_update_helper_;
 

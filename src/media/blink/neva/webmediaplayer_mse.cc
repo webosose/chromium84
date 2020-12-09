@@ -37,6 +37,13 @@
 
 namespace media {
 
+namespace {
+
+const base::TimeDelta kCurrentTimeUpdateInterval =
+    base::TimeDelta::FromSeconds(1);
+
+}  // namespace
+
 #define BIND_TO_RENDER_LOOP_VIDEO_FRAME_PROVIDER(function) \
   (DCHECK(main_task_runner_->BelongsToCurrentThread()),    \
    BindToCurrentLoop(                                      \
@@ -170,6 +177,13 @@ void WebMediaPlayerMSE::Play() {
     return;
   }
   media::WebMediaPlayerImpl::Play();
+
+  if (!media_position_update_timer_.IsRunning()) {
+    media_position_update_timer_.Start(
+        FROM_HERE, kCurrentTimeUpdateInterval,
+        base::BindRepeating(&WebMediaPlayerMSE::OnMediaPositionUpdateTimerFired,
+                            base::Unretained(this)));
+  }
 }
 
 void WebMediaPlayerMSE::Pause() {
@@ -179,6 +193,9 @@ void WebMediaPlayerMSE::Pause() {
     return;
   }
   media::WebMediaPlayerImpl::Pause();
+
+  if (media_position_update_timer_.IsRunning())
+    media_position_update_timer_.Stop();
 }
 
 void WebMediaPlayerMSE::SetRate(double rate) {
@@ -364,6 +381,13 @@ void WebMediaPlayerMSE::OnError(PipelineStatus metadata) {
   media::WebMediaPlayerImpl::OnError(metadata);
 }
 
+void WebMediaPlayerMSE::OnEnded() {
+  if (media_position_update_timer_.IsRunning())
+    media_position_update_timer_.Stop();
+
+  media::WebMediaPlayerImpl::OnEnded();
+}
+
 void WebMediaPlayerMSE::OnMetadata(const PipelineMetadata& metadata) {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
 
@@ -472,6 +496,10 @@ void WebMediaPlayerMSE::OnVideoWindowVisibilityChanged(bool visibility) {
 #if defined(NEVA_VIDEO_HOLE)
   geometry_update_helper_->SetMediaLayerVisibility(visibility);
 #endif
+}
+
+void WebMediaPlayerMSE::OnMediaPositionUpdateTimerFired() {
+  media::WebMediaPlayerImpl::UpdateMediaPositionState();
 }
 
 // It returns if video window is already created and can be continued to next

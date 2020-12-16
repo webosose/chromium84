@@ -729,16 +729,21 @@ void MediaPlatformAPIWebOSGmp::SetMediaVideoData(
   DCHECK(media_task_runner_->BelongsToCurrentThread());
   Json::Reader reader;
   Json::Value json_video_info;
-  if (reader.parse(video_info, json_video_info) && json_video_info.isObject() &&
-      json_video_info.isMember("video") &&
-      json_video_info["video"].isMember("width") &&
-      json_video_info["video"].isMember("height")) {
-    gfx::Size natural_video_size(json_video_info["video"]["width"].asUInt(),
-                                 json_video_info["video"]["height"].asUInt());
-    if (natural_video_size_ != natural_video_size) {
-      natural_video_size_ = natural_video_size;
-      if (natural_video_size_changed_cb_)
-        natural_video_size_changed_cb_.Run(natural_video_size_);
+  if (reader.parse(video_info, json_video_info) &&
+      json_video_info.isObject() &&
+      json_video_info.isMember("videoInfo")) {
+    Json::Value video_info = json_video_info["videoInfo"];
+    if (video_info.isMember("video") &&
+        video_info["video"].isMember("width") &&
+        video_info["video"].isMember("height")) {
+      gfx::Size natural_video_size(video_info["video"]["width"].asUInt(),
+                                   video_info["video"]["height"].asUInt());
+
+      if (natural_video_size_ != natural_video_size) {
+        natural_video_size_ = natural_video_size;
+        if (natural_video_size_changed_cb_)
+          natural_video_size_changed_cb_.Run(natural_video_size_);
+      }
     }
   }
 }

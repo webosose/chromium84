@@ -11,7 +11,6 @@
 
 #if defined(OS_WEBOS)
 #include "base/unguessable_token.h"
-#include "services/media_session/public/mojom/media_session.mojom.h"
 #endif
 
 namespace system_media_controls {
@@ -62,8 +61,6 @@ class COMPONENT_EXPORT(SYSTEM_MEDIA_CONTROLS) SystemMediaControls {
   virtual void SetMediaSessionId(
       const base::Optional<base::UnguessableToken>& session_id) {}
   virtual void SetMuteStatus(bool muted) {}
-  virtual void SetMediaPosition(
-      const base::Optional<media_session::MediaPosition>& position) {}
 #endif
 
  protected:

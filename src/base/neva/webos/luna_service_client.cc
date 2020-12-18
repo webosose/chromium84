@@ -28,7 +28,6 @@ namespace {
 
 const char kURIAudio[] = "luna://com.webos.audio";
 const char kURISetting[] = "luna://com.webos.settingsservice";
-const char kURIMediaController[] = "luna://com.webos.service.mediacontroller";
 
 }  // namespace
 
@@ -40,8 +39,7 @@ std::string LunaServiceClient::GetServiceURI(URIType type,
 
   static std::map<URIType, std::string> kURIMap = {
       {URIType::AUDIO, kURIAudio},
-      {URIType::SETTING, kURISetting},
-      {URIType::MEDIACONTROLLER, kURIMediaController}};
+      {URIType::SETTING, kURISetting}};
 
   auto luna_service_uri = [&kURIMap, &type]() {
     std::map<URIType, std::string>::iterator it;

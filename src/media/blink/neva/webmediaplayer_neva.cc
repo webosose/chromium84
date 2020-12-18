@@ -1391,16 +1391,6 @@ void WebMediaPlayerNeva::OnFrameShown() {
   OnResume();
 }
 
-void WebMediaPlayerNeva::OnPlay() {
-  if (client_)
-    client_->RequestPlay();
-}
-
-void WebMediaPlayerNeva::OnPause() {
-  if (client_)
-    client_->RequestPause();
-}
-
 void WebMediaPlayerNeva::OnEnterPictureInPicture() {
   NOTIMPLEMENTED_LOG_ONCE();
 }

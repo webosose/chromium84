@@ -138,13 +138,6 @@ void SystemMediaControlsNotifier::MediaSessionChanged(
   VLOG(1) << __func__ << " request_id: " << request_id->ToString();
   system_media_controls_->SetMediaSessionId(request_id);
 }
-#endif  // defined(OS_WEBOS)
-
-#if defined(USE_NEVA_MEDIA)
-void SystemMediaControlsNotifier::MediaSessionMutedStatusChanged(bool muted) {
-  VLOG(1) << __func__ << " muted: " << muted;
-  system_media_controls_->SetMuteStatus(muted);
-}
 #endif
 
 void SystemMediaControlsNotifier::MediaControllerImageChanged(

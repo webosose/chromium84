@@ -955,9 +955,6 @@ void MediaSessionImpl::AddObserver(
   media_session_observer->MediaSessionMetadataChanged(metadata_);
   media_session_observer->MediaSessionImagesChanged(images_);
   media_session_observer->MediaSessionPositionChanged(position_);
-#if defined(USE_NEVA_MEDIA)
-  media_session_observer->MediaSessionMutedStatusChanged(muted_);
-#endif
 
   std::vector<media_session::mojom::MediaSessionAction> actions(
       actions_.begin(), actions_.end());
@@ -1085,16 +1082,6 @@ void MediaSessionImpl::GetMediaImageBitmap(
                          std::move(callback), SkBitmap()),
                      minimum_size_px, desired_size_px));
 }
-
-#if defined(USE_NEVA_MEDIA)
-void MediaSessionImpl::SetMuted(bool mute) {
-  if (!IsActive())
-    return;
-
-  for (const auto& it : normal_players_)
-    it.first.observer->OnMuted(it.first.player_id, mute);
-}
-#endif  // defined(USE_NEVA_MEDIA)
 
 void MediaSessionImpl::AbandonSystemAudioFocusIfNeeded() {
   if (audio_focus_state_ == State::INACTIVE || !normal_players_.empty() ||
@@ -1358,15 +1345,6 @@ const base::UnguessableToken& MediaSessionImpl::GetSourceId() const {
 const base::UnguessableToken& MediaSessionImpl::GetRequestId() const {
   return delegate_->request_id();
 }
-
-#if defined(USE_NEVA_MEDIA)
-void MediaSessionImpl::OnMediaMutedStatusChanged(bool muted) {
-  for (auto& observer : observers_)
-   observer->MediaSessionMutedStatusChanged(muted);
-
-  muted_ = muted;
-}
-#endif  // defined(USE_NEVA_MEDIA)
 
 void MediaSessionImpl::RebuildAndNotifyActionsChanged() {
   std::set<media_session::mojom::MediaSessionAction> actions =

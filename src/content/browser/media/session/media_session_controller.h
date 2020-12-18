@@ -57,10 +57,6 @@ class CONTENT_EXPORT MediaSessionController
   void OnSetVolumeMultiplier(int player_id, double volume_multiplier) override;
   void OnEnterPictureInPicture(int player_id) override;
   void OnExitPictureInPicture(int player_id) override;
-#if defined(USE_NEVA_MEDIA)
-  void OnMuted(int player_id, bool mute) override;
-#endif  // defined(USE_NEVA_MEDIA)
-
   RenderFrameHost* render_frame_host() const override;
   base::Optional<media_session::MediaPosition> GetPosition(
       int player_id) const override;
@@ -89,11 +85,6 @@ class CONTENT_EXPORT MediaSessionController
   // Determines whether a session is needed and adds or removes the player
   // accordingly.
   void AddOrRemovePlayer();
-
-#if defined(USE_NEVA_MEDIA)
-  // Called when the media mute state of the player has changed.
-  void OnMediaMutedStatusChanged(bool muted);
-#endif
 
  private:
   friend class MediaSessionControllerTest;

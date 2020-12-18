@@ -25,9 +25,6 @@ class COMPONENT_EXPORT(SYSTEM_MEDIA_CONTROLS) SystemMediaControlsObserver
   virtual void OnPause() = 0;
   virtual void OnPlayPause() = 0;
   virtual void OnStop() = 0;
-#if defined(OS_WEBOS)
-  virtual void OnMuteStateChanged(bool mute) {}
-#endif
 
  protected:
   ~SystemMediaControlsObserver() override = default;

@@ -153,15 +153,4 @@ void MediaSessionControllersManager::OnPictureInPictureAvailabilityChanged(
   it->second->OnPictureInPictureAvailabilityChanged(available);
 }
 
-#if defined(USE_NEVA_MEDIA)
-void MediaSessionControllersManager::OnMediaMutedStatusChanged(
-    const MediaPlayerId& id,
-    bool muted) {
-  auto it = controllers_map_.find(id);
-  if (it == controllers_map_.end())
-    return;
-  it->second->OnMediaMutedStatusChanged(muted);
-}
-#endif  // defined(USE_NEVA_MEDIA)
-
 }  // namespace content

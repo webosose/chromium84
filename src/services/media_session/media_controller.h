@@ -53,9 +53,6 @@ class MediaController : public mojom::MediaController,
   void ScrubTo(base::TimeDelta seek_time) override;
   void EnterPictureInPicture() override;
   void ExitPictureInPicture() override;
-#if defined(USE_NEVA_MEDIA)
-  void SetMuted(bool mute) override;
-#endif
 
   // mojom::MediaSessionObserver overrides.
   void MediaSessionInfoChanged(
@@ -69,10 +66,6 @@ class MediaController : public mojom::MediaController,
                            std::vector<MediaImage>>& images) override;
   void MediaSessionPositionChanged(
       const base::Optional<media_session::MediaPosition>& position) override;
-
-#if defined(USE_NEVA_MEDIA)
-  void MediaSessionMutedStatusChanged(bool muted) override;
-#endif
 
   void SetMediaSession(AudioFocusRequest* session);
   void ClearMediaSession();
@@ -104,11 +97,6 @@ class MediaController : public mojom::MediaController,
 
   // The current position for |session_|.
   base::Optional<MediaPosition> session_position_;
-
-#if defined(USE_NEVA_MEDIA)
-  // The current mute status for |session_|.
-  bool session_muted_;
-#endif
 
   // The current images for |session_|.
   base::flat_map<mojom::MediaSessionImageType, std::vector<MediaImage>>

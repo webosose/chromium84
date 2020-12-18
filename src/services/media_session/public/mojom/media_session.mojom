@@ -31,10 +31,6 @@ enum MediaSessionAction {
   kScrubTo,
   kEnterPictureInPicture,
   kExitPictureInPicture,
-  [EnableIf=use_neva_media]
-  kMute,
-  [EnableIf=use_neva_media]
-  kUnMute,
 };
 
 [Extensible]
@@ -186,10 +182,6 @@ interface MediaSessionObserver {
 
   // Called when the position associated with the session has changed.
   MediaSessionPositionChanged@4(MediaPosition? position);
-
-  // Called when the Observed MediaSession has changes Muted status
-  [EnableIf=use_neva_media]
-  MediaSessionMutedStatusChanged@5(bool muted);
 };
 
 // A MediaSession manages the media session and audio focus for a given
@@ -278,8 +270,4 @@ interface MediaSession {
 
   // Exit picture-in-picture.
   ExitPictureInPicture@16();
-
-  // Set the media session to mute/unmute based on |mute|
-  [EnableIf=use_neva_media]
-  SetMuted@15(bool mute);
 };

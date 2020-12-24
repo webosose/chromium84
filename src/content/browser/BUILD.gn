@@ -2033,6 +2033,7 @@ jumbo_source_set("browser") {
       "media/session/webos/media_session_observer_webos.cc",
       "media/session/webos/media_session_observer_webos.h",
     ]
+    deps += [ "//base/neva/webos" ]
   }
 
   if (use_neva_media) {

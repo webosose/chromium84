@@ -10,6 +10,7 @@ import "mojo/public/mojom/base/file_path.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 import "mojo/public/mojom/base/values.mojom";
+import "neva/pal_service/public/mojom/os_crypt.mojom";
 import "services/network/public/mojom/address_list.mojom";
 import "services/network/public/mojom/parsed_headers.mojom";
 import "services/network/public/mojom/cookie_access_observer.mojom";
@@ -1371,4 +1372,6 @@ interface NetworkContext {
   // Gets the OriginPolicyManager associated with this network context.
   GetOriginPolicyManager(
       pending_receiver<OriginPolicyManager> origin_policy_manager);
+
+  SetOSCrypt(pending_remote<pal.mojom.OSCrypt> os_crypt);
 };

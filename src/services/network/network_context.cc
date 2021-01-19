@@ -381,6 +381,9 @@ NetworkContext::NetworkContext(
       cors_preflight_controller_(
           params_->cors_extra_safelisted_request_header_names,
           network_service) {
+
+  cookie_crypto_delegate_ =
+      std::make_unique<cookie_config::CookieNevaCryptoDelegate>();
   url_request_context_owner_ = MakeURLRequestContext();
   url_request_context_ = url_request_context_owner_.url_request_context.get();
 
@@ -1806,7 +1809,9 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext() {
           << "NetworkService::SetCryptConfig must be called before creating a "
              "NetworkContext with encrypted cookies.";
 #endif
-      crypto_delegate = cookie_config::GetCookieCryptoDelegate();
+      cookie_crypto_delegate_->SetDefaultCryptoDelegate(
+          cookie_config::GetCookieCryptoDelegate());
+      crypto_delegate = cookie_crypto_delegate_.get();
     }
     scoped_refptr<net::SQLitePersistentCookieStore> sqlite_store(
         new net::SQLitePersistentCookieStore(
@@ -2365,6 +2370,11 @@ void NetworkContext::CreateTrustedUrlLoaderFactoryForNetworkService(
   url_loader_factory_params->process_id = network::mojom::kBrowserProcessId;
   CreateURLLoaderFactory(std::move(url_loader_factory_pending_receiver),
                          std::move(url_loader_factory_params));
+}
+
+void NetworkContext::SetOSCrypt(
+    mojo::PendingRemote<pal::mojom::OSCrypt> os_crypt) {
+  cookie_crypto_delegate_->SetOSCrypt(std::move(os_crypt));
 }
 
 }  // namespace network

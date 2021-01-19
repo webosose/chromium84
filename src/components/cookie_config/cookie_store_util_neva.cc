@@ -77,7 +77,7 @@ bool CookieNevaCryptoDelegate::DecryptString(const std::string& ciphertext,
     base::WaitableEvent finished(
         base::WaitableEvent::ResetPolicy::MANUAL,
         base::WaitableEvent::InitialState::NOT_SIGNALED);
-    os_crypt_->EncryptString(
+    os_crypt_->DecryptString(
         ciphertext, base::BindOnce(
                         [](base::WaitableEvent* finished, bool* success,
                            std::string* plaintext, bool remote_success,

@@ -77,7 +77,7 @@ void OSCryptImpl::DecryptString(
   delegate_->DecryptString(
       ciphertext,
       base::BindOnce(
-          [](pal::mojom::OSCrypt::EncryptStringCallback callback, int trace_id,
+          [](pal::mojom::OSCrypt::DecryptStringCallback callback, int trace_id,
              bool success, const std::string& plaintext) {
             VLOG(3) << __func__ << " using delegate";
             std::move(callback).Run(success, plaintext);

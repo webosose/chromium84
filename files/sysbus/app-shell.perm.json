@@ -1,14 +1,13 @@
 {
     "com.webos.app.enactbrowser": [
-        "applications",
-        "settings.read",
-        "signals.all"
+        "application.operation",
+        "application.launcher",
+        "settings.query"
     ],
     "com.webos.chromium.memory.*": [
-        "system",
-        "signals.all"
+        "memorymanager.query"
     ],
     "com.webos.rm.client.*": [
-        "media"
+        "media.operation"
     ]
 }

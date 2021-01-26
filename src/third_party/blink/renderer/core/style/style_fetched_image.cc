@@ -64,6 +64,8 @@ StyleFetchedImage::StyleFetchedImage(const Document& document,
         const_cast<Document*>(document_.Get())->AddDeferredBackgroundImage();
     VLOG(1) << __func__ << " found an image to defer " << url_
             << ", deferred=" << commit_deferred_;
+    if (commit_deferred_)
+      ignore_paint_timing_.emplace();
   }
 #endif
 }
@@ -162,6 +164,7 @@ void StyleFetchedImage::ImageNotifyFinished(ImageResourceContent*) {
 #if defined(OS_WEBOS)
   if (commit_deferred_ && document_) {
     VLOG(1) << __func__ << " removing deferred image" << url_;
+    ignore_paint_timing_.reset();
     const_cast<Document*>(document_.Get())->RemoveDeferredBackgroundImage();
     commit_deferred_ = false;
   }

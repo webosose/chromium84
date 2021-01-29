@@ -107,6 +107,14 @@ class AURA_EXPORT WindowTreeHostPlatform : public WindowTreeHost,
   ui::LinuxInputMethodContext* GetInputMethodContext() override;
   ///@}
 
+#if defined(OS_WEBOS)
+  void OnInputPanelVisibilityChanged(bool visibility) override;
+  void OnInputPanelRectChanged(int32_t x,
+                               int32_t y,
+                               uint32_t width,
+                               uint32_t height) override;
+#endif
+
   // Overridden from ui::InputMethodNevaObserver:
   void OnShowIme() override;
   void OnHideIme(ui::ImeHiddenType) override;

@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "base/macros.h"
+#include "base/timer/timer.h"
 #include "extensions/browser/app_window/app_window_registry.h"
 #include "ui/aura/client/window_parenting_client.h"
 #include "ui/aura/window_tree_host_observer.h"
@@ -89,11 +90,37 @@ class RootWindowController : public aura::client::WindowParentingClient,
                                 ui::WidgetState new_state) override;
   ///@}
 
+#if defined(OS_WEBOS)
+  void OnInputPanelVisibilityChanged(aura::WindowTreeHost* host,
+                                     bool visibility) override;
+  void OnInputPanelRectChanged(aura::WindowTreeHost* host,
+                               int32_t x,
+                               int32_t y,
+                               uint32_t width,
+                               uint32_t height) override;
+#endif
+
   // AppWindowRegistry::Observer:
   void OnAppWindowRemoved(AppWindow* app_window) override;
 
  private:
   void DestroyWindowTreeHost();
+
+#if defined(OS_WEBOS)
+  void ComputeScaleFactor(int window_height);
+  int CalculateTextInputOverlappedHeight(aura::WindowTreeHost* host,
+                                         const gfx::Rect& rect);
+  bool CanShiftContent(aura::WindowTreeHost* host, int height);
+  void CheckShiftContent(aura::WindowTreeHost* host);
+  void ShiftContentByY(int height);
+  void RestoreContentByY();
+
+  gfx::Rect input_panel_rect_;
+  float scale_factor_ = 1.f;
+  bool input_panel_visible_ = false;
+  bool shifting_was_requested_ = false;
+  base::OneShotTimer timer_for_shifting_;
+#endif
 
   DesktopDelegate* const desktop_delegate_;
 

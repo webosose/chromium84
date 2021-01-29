@@ -295,6 +295,14 @@ class AURA_EXPORT WindowTreeHost : public ui::internal::InputMethodDelegate,
   void OnWindowHostStateChanged(ui::WidgetState new_state);
   ///@}
 
+#if defined(OS_WEBOS)
+  void OnInputPanelVisibilityChanged(bool visibility);
+  void OnInputPanelRectChanged(int32_t x,
+                               int32_t y,
+                               uint32_t width,
+                               uint32_t height);
+#endif
+
   // Sets the currently displayed cursor.
   virtual void SetCursorNative(gfx::NativeCursor cursor) = 0;
 

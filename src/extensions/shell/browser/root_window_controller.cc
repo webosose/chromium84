@@ -31,6 +31,15 @@
 #include "content/public/browser/neva/media_state_manager.h"
 #endif
 
+#if defined(OS_WEBOS)
+#include "ui/base/ime/input_method.h"
+#include "ui/base/ime/text_input_client.h"
+#include "ui/display/screen.h"
+
+constexpr int kKeyboardAnimationTime = 600;
+constexpr int kKeyboardHeightMargin = 10;
+#endif
+
 namespace extensions {
 
 namespace {
@@ -128,6 +137,10 @@ RootWindowController::RootWindowController(
   host_->window()->SetLayoutManager(new FillLayout(host_->window()));
   host_->AddObserver(this);
   host_->Show();
+
+#if defined(OS_WEBOS)
+  ComputeScaleFactor(bounds.height());
+#endif
 }
 
 RootWindowController::~RootWindowController() {
@@ -245,6 +258,139 @@ void RootWindowController::OnWindowHostStateChanged(aura::WindowTreeHost* host,
   }
 }
 ///@}
+
+#if defined(OS_WEBOS)
+void RootWindowController::ComputeScaleFactor(int window_height) {
+  scale_factor_ = 1.f;
+  const int display_height =
+      display::Screen::GetScreen()->GetPrimaryDisplay().bounds().height();
+  if (window_height != display_height)
+    scale_factor_ = static_cast<float>(display_height) / window_height;
+}
+
+int RootWindowController::CalculateTextInputOverlappedHeight(
+    aura::WindowTreeHost* host,
+    const gfx::Rect& rect) {
+  int shift_height = 0;
+  if (!host)
+    return shift_height;
+
+  ui::InputMethod* ime = host->GetInputMethod();
+  if (!ime || !ime->GetTextInputClient())
+    return shift_height;
+
+  gfx::Rect input_bounds = ime->GetTextInputClient()->GetTextInputBounds();
+  gfx::Rect caret_bounds = ime->GetTextInputClient()->GetCaretBounds();
+  gfx::Rect input_bounds_to_window_pos =
+      gfx::Rect(input_bounds.x(),
+                caret_bounds.y(),
+                input_bounds.width(), input_bounds.height());
+  gfx::Rect scaled_rect =
+      gfx::Rect(rect.x() / scale_factor_, rect.y() / scale_factor_,
+                rect.width() / scale_factor_, rect.height() / scale_factor_);
+
+  if (input_bounds_to_window_pos.Intersects(scaled_rect))
+    shift_height = input_bounds_to_window_pos.bottom() - scaled_rect.y();
+
+  return shift_height;
+}
+
+bool RootWindowController::CanShiftContent(aura::WindowTreeHost* host,
+                                           int height) {
+  if (!host)
+    return false;
+
+  ui::InputMethod* ime = host->GetInputMethod();
+  if (!ime || !ime->GetTextInputClient())
+    return false;
+
+  gfx::Rect input_bounds = ime->GetTextInputClient()->GetTextInputBounds();
+
+  return input_bounds.y() >= height;
+}
+
+void RootWindowController::CheckShiftContent(aura::WindowTreeHost* host) {
+  if (input_panel_rect_.height()) {
+    gfx::Rect panel_rect_margin = gfx::Rect(
+        input_panel_rect_.x(), input_panel_rect_.y() - kKeyboardHeightMargin,
+        input_panel_rect_.width(),
+        input_panel_rect_.height() + kKeyboardHeightMargin);
+    int shift_height = CalculateTextInputOverlappedHeight(host, panel_rect_margin);
+    if (shift_height != 0 && CanShiftContent(host, shift_height))
+        ShiftContentByY(shift_height);
+  }
+}
+
+void RootWindowController::ShiftContentByY(int height) {
+  content::WebContents* web_contents = nullptr;
+
+  // FIXME : For multi apps, we should search app with active text input.
+  // Enact-browser is one app and this is not effective currently.
+  for (AppWindow* app_window : app_windows_) {
+    web_contents = app_window->web_contents();
+    if (web_contents && web_contents->GetMainFrame() &&
+        web_contents->GetMainFrame()->IsRenderFrameLive())
+      break;
+  }
+
+  if (web_contents == nullptr)
+    return;
+
+  content::RenderFrameHost* rfh = web_contents->GetMainFrame();
+  if (rfh && rfh->IsRenderFrameLive()) {
+    std::stringstream ss;
+    ss << "document.dispatchEvent(new CustomEvent('shiftContent', { detail: "
+       << height << "}));";
+    const base::string16 js_code = base::UTF8ToUTF16(ss.str());
+    if (height == 0) {
+      rfh->ExecuteJavaScript(js_code, base::NullCallback());
+    } else {
+      if (timer_for_shifting_.IsRunning())
+        timer_for_shifting_.Reset();
+      else
+        timer_for_shifting_.Start(
+            FROM_HERE,
+            base::TimeDelta::FromMilliseconds(kKeyboardAnimationTime),
+            base::BindOnce(
+                &content::RenderFrameHost::ExecuteJavaScript,
+                base::Unretained(rfh), js_code,
+                content::RenderFrameHost::JavaScriptResultCallback()));
+    }
+    if (!shifting_was_requested_)
+      shifting_was_requested_ = true;
+  }
+}
+
+void RootWindowController::RestoreContentByY() {
+  if (shifting_was_requested_) {
+    if (timer_for_shifting_.IsRunning())
+      timer_for_shifting_.Reset();
+    ShiftContentByY(0);
+    shifting_was_requested_ = false;
+  }
+}
+
+void RootWindowController::OnInputPanelVisibilityChanged(
+    aura::WindowTreeHost* host,
+    bool visibility) {
+  if (visibility)
+    CheckShiftContent(host);
+  else
+    RestoreContentByY();
+
+  input_panel_visible_ = visibility;
+}
+
+void RootWindowController::OnInputPanelRectChanged(aura::WindowTreeHost* host,
+                                                   int32_t x,
+                                                   int32_t y,
+                                                   uint32_t width,
+                                                   uint32_t height) {
+  input_panel_rect_.SetRect(x, y, width, height);
+  if (input_panel_visible_)
+    CheckShiftContent(host);
+}
+#endif
 
 void RootWindowController::OnAppWindowRemoved(AppWindow* window) {
   if (app_windows_.empty())

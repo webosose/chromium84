@@ -354,6 +354,19 @@ ui::LinuxInputMethodContext* WindowTreeHostPlatform::GetInputMethodContext() {
 }
 ///@}
 
+#if defined(OS_WEBOS)
+void WindowTreeHostPlatform::OnInputPanelVisibilityChanged(bool visibility) {
+  WindowTreeHost::OnInputPanelVisibilityChanged(visibility);
+}
+
+void WindowTreeHostPlatform::OnInputPanelRectChanged(int32_t x,
+                                                     int32_t y,
+                                                     uint32_t width,
+                                                     uint32_t height) {
+  WindowTreeHost::OnInputPanelRectChanged(x, y, width, height);
+}
+#endif
+
 void WindowTreeHostPlatform::OnLostCapture() {
   OnHostLostWindowCapture();
 }

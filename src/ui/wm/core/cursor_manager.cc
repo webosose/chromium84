@@ -95,6 +95,10 @@ void CursorManager::ResetCursorVisibilityStateForTest() {
 }
 
 void CursorManager::SetCursor(gfx::NativeCursor cursor) {
+#if defined(USE_NEVA_APPRUNTIME)
+  if (!platform_cursor_is_visible_)
+    return;
+#endif
   bool previously_visible = GetCursor().type() != ui::mojom::CursorType::kNone;
   state_on_unlock_->set_cursor(cursor);
   if (cursor_lock_count_ == 0 &&
@@ -113,6 +117,10 @@ gfx::NativeCursor CursorManager::GetCursor() const {
 }
 
 void CursorManager::ShowCursor() {
+#if defined(USE_NEVA_APPRUNTIME)
+  if (!platform_cursor_is_visible_)
+    return;
+#endif
   last_cursor_visibility_state_ = true;
   state_on_unlock_->SetVisible(true);
   if (cursor_lock_count_ == 0 &&
@@ -156,6 +164,10 @@ ui::CursorSize CursorManager::GetCursorSize() const {
 
 void CursorManager::EnableMouseEvents() {
   TRACE_EVENT0("ui,input", "CursorManager::EnableMouseEvents");
+#if defined(USE_NEVA_APPRUNTIME)
+  if (!platform_cursor_is_visible_)
+    return;
+#endif
   state_on_unlock_->SetMouseEventsEnabled(true);
   if (cursor_lock_count_ == 0 &&
       IsMouseEventsEnabled() != state_on_unlock_->mouse_events_enabled()) {
@@ -231,6 +243,18 @@ bool CursorManager::ShouldHideCursorOnKeyEvent(
     const ui::KeyEvent& event) const {
   return false;
 }
+
+#if defined(USE_NEVA_APPRUNTIME)
+void CursorManager::SetPlatformCursorVisibility(bool visible) {
+  if (platform_cursor_is_visible_ == visible)
+    return;
+  platform_cursor_is_visible_ = visible;
+  if (visible)
+    ShowCursor();
+  else
+    HideCursor();
+}
+#endif
 
 void CursorManager::CommitCursor(gfx::NativeCursor cursor) {
   current_state_->set_cursor(cursor);

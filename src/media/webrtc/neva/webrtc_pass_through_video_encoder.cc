@@ -20,7 +20,7 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/threading/thread_restrictions.h"
-#include "media/webrtc/neva/webos/webrtc_video_encoder_webos_gmp.h"
+#include "media/webrtc/neva/webos/webrtc_video_encoder_webos.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
@@ -147,9 +147,16 @@ int32_t WebRtcPassThroughVideoEncoder::Encode(
     return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
   }
 
-  const bool want_key_frame =
-      frame_types && frame_types->size() &&
-      frame_types->front() == webrtc::VideoFrameType::kVideoFrameKey;
+  bool want_key_frame = false;
+  if (frame_types) {
+    for (const auto& frame_type : *frame_types) {
+      if (frame_type == webrtc::VideoFrameType::kVideoFrameKey) {
+        want_key_frame = true;
+        break;
+      }
+    }
+  }
+
   base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
   base::WaitableEvent encode_waiter(
       base::WaitableEvent::ResetPolicy::MANUAL,

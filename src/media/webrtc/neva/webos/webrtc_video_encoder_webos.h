@@ -14,18 +14,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef MEDIA_WEBRTC_NEVA_WEBOS_WEBRTC_VIDEO_ENCODER_WEBOS_GMP_H_
-#define MEDIA_WEBRTC_NEVA_WEBOS_WEBRTC_VIDEO_ENCODER_WEBOS_GMP_H_
+#ifndef MEDIA_WEBRTC_NEVA_WEBOS_WEBRTC_VIDEO_ENCODER_WEBOS_H_
+#define MEDIA_WEBRTC_NEVA_WEBOS_WEBRTC_VIDEO_ENCODER_WEBOS_H_
 
 #include <glib.h>
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "media/webrtc/neva/webrtc_video_encoder.h"
+#include "third_party/webrtc/common_video/include/i420_buffer_pool.h"
 
-namespace cmp::player {
-class MediaEncoderClient;
-}  // namespace cmp
+namespace mcil::encoder {
+class VideoEncoderAPI;
+}  // namespace mcil::encoder
 
 namespace webrtc {
 class EncodedImage;
@@ -35,22 +36,17 @@ namespace media {
 
 class VideoFrame;
 
-class WebRtcVideoEncoderWebOSGMP : public WebRtcVideoEncoder {
+class WebRtcVideoEncoderWebOS : public WebRtcVideoEncoder {
  public:
-  // static
-  static void Callback(const gint cb_type,
-                       const void* cb_data,
-                       void* user_data);
-
-  WebRtcVideoEncoderWebOSGMP(
+  WebRtcVideoEncoderWebOS(
       scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
       scoped_refptr<base::SingleThreadTaskRunner> encode_task_runner,
       webrtc::VideoCodecType video_codec_type,
       webrtc::VideoContentType video_content_type);
-  WebRtcVideoEncoderWebOSGMP(const WebRtcVideoEncoderWebOSGMP&) = delete;
-  WebRtcVideoEncoderWebOSGMP& operator=(const WebRtcVideoEncoderWebOSGMP&) =
+  WebRtcVideoEncoderWebOS(const WebRtcVideoEncoderWebOS&) = delete;
+  WebRtcVideoEncoderWebOS& operator=(const WebRtcVideoEncoderWebOS&) =
       delete;
-  ~WebRtcVideoEncoderWebOSGMP();
+  ~WebRtcVideoEncoderWebOS();
 
   // Implements WebRtcVideoEncoder
   void CreateAndInitialize(const gfx::Size& input_visible_size,
@@ -70,33 +66,37 @@ class WebRtcVideoEncoderWebOSGMP : public WebRtcVideoEncoder {
   // Checks if the bitrate would overflow when passing from kbps to bps.
   bool IsBitrateTooHigh(uint32_t bitrate);
 
+  void OnEncodedData(const uint8_t* buffer, uint32_t buffer_size,
+                     uint64_t time_stamp, bool is_key_frame);
+
   // Return an encoded output buffer to WebRTC.
   void ReturnEncodedImage(const webrtc::EncodedImage& image);
 
-  void NotifyLoadCompleted();
-
-  void NotifyEncodedBufferReady(const void* data);
-
-  void NotifyEncoderError(const void* data);
-
-  void DispatchCallback(const gint cb_type, const void* cb_data);
+  uint32_t UpdateFrameSize(gfx::Size new_size);
 
   scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
 
   // The underlying perform encoding on.
-  std::unique_ptr<cmp::player::MediaEncoderClient> media_encoder_client_;
+  std::unique_ptr<mcil::encoder::VideoEncoderAPI> video_encoder_api_;
 
   // Whether load is completed or not.
   bool load_completed_ = false;
 
+  webrtc::I420BufferPool pool_;
+
   // Frame sizes.
   gfx::Size input_visible_size_;
 
-  // Used for extracting I420 buffers from webrtc::VideoFrame 
+#if defined(USE_GST_MEDIA)
+  // Used for extracting I420 buffers from webrtc::VideoFrame
   std::unique_ptr<uint8_t> i420_buffer_;
   size_t i420_buffer_size_ = 0;
+#endif
+
+  base::WeakPtr<WebRtcVideoEncoderWebOS> weak_this_;
+  base::WeakPtrFactory<WebRtcVideoEncoderWebOS> weak_this_factory_{this};
 };
 
 }  // namespace media
 
-#endif  // MEDIA_WEBRTC_NEVA_WEBOS_WEBRTC_VIDEO_ENCODER_WEBOS_GMP_H_
+#endif  // MEDIA_WEBRTC_NEVA_WEBOS_WEBRTC_VIDEO_ENCODER_WEBOS_H_

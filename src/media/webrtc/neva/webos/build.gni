@@ -26,11 +26,11 @@ webos = {
   sources = [
   ]
 
-  if (use_gst_media) {
+  if (use_neva_webrtc) {
     configs += [ "//media/webrtc/neva/webos:media_webrtc_gst_config" ]
     sources += [
-      "$_dir/webrtc_video_encoder_webos_gmp.cc",
-      "$_dir/webrtc_video_encoder_webos_gmp.h",
+      "$_dir/webrtc_video_encoder_webos.cc",
+      "$_dir/webrtc_video_encoder_webos.h",
     ]
   } else {
     sources += [

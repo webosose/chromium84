@@ -98,7 +98,7 @@ class WebRtcVideoEncoder
 
  private:
   friend class base::RefCountedThreadSafe<WebRtcVideoEncoder>;
-  friend class WebRtcVideoEncoderWebOSGMP;
+  friend class WebRtcVideoEncoderWebOS;
 
   // Task runner corresponding to encoding thread
   scoped_refptr<base::SingleThreadTaskRunner> encode_task_runner_;

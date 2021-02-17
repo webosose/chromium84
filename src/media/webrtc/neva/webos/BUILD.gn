@@ -17,10 +17,10 @@
 import("//build/config/linux/pkg_config.gni")
 import("//neva/neva.gni")
 
-if (use_gst_media) {
+if (use_neva_webrtc) {
   pkg_config("media_webrtc_gst_config") {
     packages = [
-      "media-encoder-client",
+      "media-codec-interface",
       "gstreamer-1.0",
     ]
   }

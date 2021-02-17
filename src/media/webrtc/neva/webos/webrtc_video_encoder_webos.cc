@@ -14,10 +14,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include "media/webrtc/neva/webos/webrtc_video_encoder_webos_gmp.h"
+#include "media/webrtc/neva/webos/webrtc_video_encoder_webos.h"
 
 #pragma GCC optimize("rtti")
-#include <cmp/media_encoder_client.h>
+#include <mcil/video_encoder_api.h>
 #pragma GCC reset_options
 
 #include <memory>
@@ -41,14 +41,21 @@ namespace media {
 
 namespace {
 
-CMP_VIDEO_CODEC emc_codecs[] = {
-  CMP_VIDEO_CODEC_NONE,
-  CMP_VIDEO_CODEC_VP8,
-  CMP_VIDEO_CODEC_VP9,
-  CMP_VIDEO_CODEC_NONE,
-  CMP_VIDEO_CODEC_H264,
-  CMP_VIDEO_CODEC_MAX,
+MCIL_VIDEO_CODEC emc_codecs[] = {
+  MCIL_VIDEO_CODEC_NONE,
+  MCIL_VIDEO_CODEC_VP8,
+  MCIL_VIDEO_CODEC_VP9,
+  MCIL_VIDEO_CODEC_NONE,
+  MCIL_VIDEO_CODEC_H264,
+  MCIL_VIDEO_CODEC_MAX,
 };
+
+// Size are aligned for efficiency (required by HXENC).
+constexpr int kSizeAlignment = 4;
+
+static inline size_t RoundUp(size_t value, size_t alignment) {
+  return ((value + (alignment - 1)) & ~(alignment - 1));
+}
 
 const char* EncoderCbTypeToString(gint type) {
 #define STRINGIFY_ENCODER_CB_TYPE_CASE(type) \
@@ -96,7 +103,7 @@ WebRtcVideoEncoder* WebRtcVideoEncoder::Create(
     scoped_refptr<base::SingleThreadTaskRunner> encode_task_runner,
     webrtc::VideoCodecType video_codec_type,
     webrtc::VideoContentType video_content_type) {
-  return new WebRtcVideoEncoderWebOSGMP(
+  return new WebRtcVideoEncoderWebOS(
       main_task_runner, encode_task_runner, video_codec_type,
       video_content_type);
 }
@@ -104,34 +111,15 @@ WebRtcVideoEncoder* WebRtcVideoEncoder::Create(
 // static
 bool WebRtcVideoEncoder::IsCodecTypeSupported(
     webrtc::VideoCodecType type) {
-  return cmp::player::MediaEncoderClient::IsCodecSupported(emc_codecs[type]);
+  return mcil::encoder::VideoEncoderAPI::IsCodecSupported(emc_codecs[type]);
 }
 
 // static
 const char* WebRtcVideoEncoder::ImplementationName() {
-  return "WebRtcVideoEncoderWebOSGMP";
+  return "WebRtcVideoEncoderWebOS";
 }
 
-// static
-void WebRtcVideoEncoderWebOSGMP::Callback(const gint cb_type,
-                                          const void* cb_data,
-                                          void* user_data) {
-  WebRtcVideoEncoderWebOSGMP* that =
-      static_cast<WebRtcVideoEncoderWebOSGMP*>(user_data);
-  if (!that) {
-    LOG(ERROR) << __func__ << " Invalid user pointer recieved.";
-    return;
-  }
-
-  blink::PostCrossThreadTask(
-      *that->main_task_runner_.get(), FROM_HERE,
-      WTF::CrossThreadBindOnce(
-          &WebRtcVideoEncoderWebOSGMP::DispatchCallback,
-          scoped_refptr<WebRtcVideoEncoderWebOSGMP>(that),
-          cb_type, WTF::CrossThreadUnretained(cb_data)));
-}
-
-WebRtcVideoEncoderWebOSGMP::WebRtcVideoEncoderWebOSGMP(
+WebRtcVideoEncoderWebOS::WebRtcVideoEncoderWebOS(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
     scoped_refptr<base::SingleThreadTaskRunner> encode_task_runner,
     webrtc::VideoCodecType video_codec_type,
@@ -140,13 +128,14 @@ WebRtcVideoEncoderWebOSGMP::WebRtcVideoEncoderWebOSGMP(
                          video_content_type),
       main_task_runner_(main_task_runner) {
   LOG(INFO) << __func__ << " codecType=" << video_codec_type;
+  weak_this_ = weak_this_factory_.GetWeakPtr();
 }
 
-WebRtcVideoEncoderWebOSGMP::~WebRtcVideoEncoderWebOSGMP() {
-  DCHECK(!media_encoder_client_);
+WebRtcVideoEncoderWebOS::~WebRtcVideoEncoderWebOS() {
+  DCHECK(!video_encoder_api_);
 }
 
-void WebRtcVideoEncoderWebOSGMP::CreateAndInitialize(
+void WebRtcVideoEncoderWebOS::CreateAndInitialize(
     const gfx::Size& input_visible_size,
     uint32_t bitrate,
     uint32_t framerate,
@@ -168,47 +157,59 @@ void WebRtcVideoEncoderWebOSGMP::CreateAndInitialize(
     return;
   }
 
-  input_visible_size_ = input_visible_size;
+#if defined(USE_GST_MEDIA)
   i420_buffer_size_ = webrtc::CalcBufferSize(webrtc::VideoType::kI420,
-                                             input_visible_size_.width(),
-                                             input_visible_size_.height());
+                                             input_visible_size.width(),
+                                             input_visible_size.height());
   i420_buffer_.reset(new uint8_t[i420_buffer_size_]);
   if (!i420_buffer_) {
     LOG(ERROR) << __func__ << " Failed to allocate buffer";
     SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_UNINITIALIZED);
     return;
   }
+#endif
 
-  media_encoder_client_.reset(new cmp::player::MediaEncoderClient());
-  if (!media_encoder_client_) {
+  video_encoder_api_.reset(new mcil::encoder::VideoEncoderAPI());
+  if (!video_encoder_api_) {
     LOG(ERROR) << __func__ << " Failed to create encoder instance";
-    SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_UNINITIALIZED);
+    SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_ERROR);
     return;
   }
 
-  media_encoder_client_->RegisterCallback(&WebRtcVideoEncoderWebOSGMP::Callback,
-                                          this);
+  // Size are aligned for efficiency (required by HXENC).
+  int codec_width = RoundUp(input_visible_size.width(), kSizeAlignment);
+  int codec_height = RoundUp(input_visible_size.height(), kSizeAlignment);
+
+  input_visible_size_ = gfx::Size(codec_width, codec_height);
+  size_t encoded_buf_size = webrtc::CalcBufferSize(webrtc::VideoType::kI420,
+                                                   codec_width, codec_height);
 
   ENCODER_INIT_DATA_T init_data;
-  init_data.pixelFormat = CMP_PIXEL_I420;
-  init_data.codecFormat = emc_codecs[video_codec_type_];
-  init_data.width = input_visible_size_.width();
-  init_data.height = input_visible_size_.height();
+  init_data.pixelFormat = MCIL_PIXEL_I420;
+  init_data.codecType = emc_codecs[video_codec_type_];
+  init_data.width = codec_width;
+  init_data.height = codec_height;
+  init_data.bitRate = bitrate;
   init_data.frameRate = framerate;
+  init_data.bufferSize = encoded_buf_size;
 
-  if (!media_encoder_client_->Init(&init_data)) {
+  if (!video_encoder_api_->Init(&init_data,
+          std::bind(&WebRtcVideoEncoderWebOS::OnEncodedData,
+                    weak_this_, std::placeholders::_1, std::placeholders::_2,
+                    std::placeholders::_3, std::placeholders::_4))) {
     LOG(ERROR) << __func__ << " Error initializing encoder.";
-    SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_UNINITIALIZED);
+    video_encoder_api_.reset();
+    SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_ERROR);
     return;
   }
 
-  main_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&WebRtcVideoEncoderWebOSGMP::NotifyLoadCompleted,
-                     base::Unretained(this)));
+  load_completed_ = true;
+
+  SetStatus(WEBRTC_VIDEO_CODEC_OK);
+  SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_OK);
 }
 
-void WebRtcVideoEncoderWebOSGMP::EncodeFrame(
+void WebRtcVideoEncoderWebOS::EncodeFrame(
     const webrtc::VideoFrame* new_frame,
     bool force_keyframe,
     base::WaitableEvent* async_waiter,
@@ -223,20 +224,47 @@ void WebRtcVideoEncoderWebOSGMP::EncodeFrame(
     return;
   }
 
-  if (!media_encoder_client_) {
+  if (!video_encoder_api_) {
     LOG(ERROR) << __func__ << " Error encoder client not created.";
-    SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_ERROR);
+    SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_UNINITIALIZED);
     return;
   }
 
   const webrtc::VideoFrame* next_frame = new_frame;
-  if (!i420_buffer_.get()) {
-    LOG(ERROR) << __func__ << " Error allocation i420_buffer.";
+  if (!new_frame->video_frame_buffer()) {
+    LOG(ERROR) << __func__ << " Error extracting frame buffer!";
     SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_ERROR);
     return;
   }
 
-  if (i420_buffer_size_ != webrtc::ExtractBuffer(*next_frame,
+  rtc::scoped_refptr<webrtc::VideoFrameBuffer> input_image =
+      new_frame->video_frame_buffer();
+
+  int32_t aligned_width = RoundUp(input_image->width(), kSizeAlignment);
+  int32_t aligned_height = RoundUp(input_image->height(), kSizeAlignment);
+
+  if (aligned_width != input_image->width() ||
+      aligned_height != input_image->height()) {
+    rtc::scoped_refptr<webrtc::I420Buffer> scaled_buffer =
+        pool_.CreateBuffer(aligned_width, aligned_height);
+    rtc::scoped_refptr<const webrtc::I420BufferInterface> input_image_i420 =
+        input_image->GetI420();
+    scaled_buffer->ScaleFrom(*input_image_i420.get());
+    // Use scaled buffer as input image.
+    input_image = scaled_buffer;
+  }
+
+  gfx::Size new_visible_size(input_image->width(), input_image->height());
+  if (input_visible_size_ != new_visible_size) {
+    int32_t ret = UpdateFrameSize(new_visible_size);
+    if (ret < 0) {
+      SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE);
+      return;
+    }
+  }
+
+#if defined(USE_GST_MEDIA)
+  if (i420_buffer_size_ != webrtc::ExtractBuffer(input_image->ToI420(),
                                                  i420_buffer_size_,
                                                  i420_buffer_.get())) {
     LOG(ERROR) << __func__ << " Error extracting i420_buffer.";
@@ -244,24 +272,44 @@ void WebRtcVideoEncoderWebOSGMP::EncodeFrame(
     return;
   }
 
-  if (CMP_MEDIA_OK != media_encoder_client_->Encode(i420_buffer_.get(),
-                                                    i420_buffer_size_)) {
+  if (MCIL_MEDIA_OK != video_encoder_api_->Encode(i420_buffer_.get(),
+                                                 i420_buffer_size_)) {
     LOG(ERROR) << __func__ << " Error feeding i420_buffer.";
-    SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_ERROR);
+    // Fallback to software if h/w encoder is not available.
+    SignalAsyncWaiter(video_encoder_api_->IsEncoderAvailable() ?
+        WEBRTC_VIDEO_CODEC_ERROR : WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE);
     return;
   }
+#else
+  rtc::scoped_refptr<webrtc::PlanarYuv8Buffer> yuv_buffer =
+      input_image->ToI420();
+  uint32_t y_size = yuv_buffer->StrideY() * yuv_buffer->height();
+  uint32_t u_size = yuv_buffer->StrideU() * ((yuv_buffer->height() + 1) / 2);
+  uint32_t v_size = yuv_buffer->StrideV() * ((yuv_buffer->height() + 1) / 2);
+  if (MCIL_MEDIA_OK != video_encoder_api_->Encode(
+                          yuv_buffer->DataY(), y_size,
+                          yuv_buffer->DataU(), u_size,
+                          yuv_buffer->DataV(), v_size,
+                          new_frame->timestamp(), force_keyframe)) {
+    LOG(ERROR) << __func__ << " Error feeding buffer.";
+    // Fallback to software if h/w encoder is not available.
+    SignalAsyncWaiter(video_encoder_api_->IsEncoderAvailable() ?
+        WEBRTC_VIDEO_CODEC_ERROR : WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE);
+    return;
+  }
+#endif
 
   if (!failed_timestamp_match_) {
     const base::TimeDelta timestamp =
-        base::TimeDelta::FromMilliseconds(next_frame->ntp_time_ms());
-    pending_timestamps_.emplace_back(timestamp, next_frame->timestamp(),
-                                     next_frame->render_time_ms());
+        base::TimeDelta::FromMilliseconds(new_frame->ntp_time_ms());
+    pending_timestamps_.emplace_back(timestamp, new_frame->timestamp(),
+                                     new_frame->render_time_ms());
   }
 
   SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_OK);
 }
 
-void WebRtcVideoEncoderWebOSGMP::RequestEncodingParametersChange(
+void WebRtcVideoEncoderWebOS::RequestEncodingParametersChange(
     const webrtc::VideoEncoder::RateControlParameters& parameters) {
   DVLOG(3) << __func__ << " bitrate=" << parameters.bitrate.ToString()
            << ", framerate=" << parameters.framerate_fps;
@@ -269,7 +317,7 @@ void WebRtcVideoEncoderWebOSGMP::RequestEncodingParametersChange(
 
   // This is a workaround to zero being temporarily provided, as part of the
   // initial setup, by WebRTC.
-  if (media_encoder_client_) {
+  if (video_encoder_api_) {
     media::VideoBitrateAllocation allocation;
     if (parameters.bitrate.get_sum_bps() == 0) {
       allocation.SetBitrate(0, 0, 1);
@@ -298,29 +346,96 @@ void WebRtcVideoEncoderWebOSGMP::RequestEncodingParametersChange(
     ENCODING_PARAMS_T params;
     params.bitRate = allocation.GetSumBps();
     params.frameRate = framerate;
-    media_encoder_client_->UpdateEncodingParams(&params);
+    video_encoder_api_->UpdateEncodingParams(&params);
   }
 }
 
-void WebRtcVideoEncoderWebOSGMP::Destroy(base::WaitableEvent* async_waiter) {
+void WebRtcVideoEncoderWebOS::Destroy(base::WaitableEvent* async_waiter) {
   DVLOG(3) << __func__;
   DCHECK(encode_task_runner_->BelongsToCurrentThread());
 
-  if (media_encoder_client_) {
-    media_encoder_client_.reset();
+#if defined(USE_GST_MEDIA)
+  if (i420_buffer_ != nullptr) {
+    i420_buffer_.reset();
+    i420_buffer_ = nullptr;
+  }
+#endif
+
+  if (video_encoder_api_) {
+    video_encoder_api_.reset();
     SetStatus(WEBRTC_VIDEO_CODEC_UNINITIALIZED);
   }
 
   async_waiter->Signal();
 }
 
-bool WebRtcVideoEncoderWebOSGMP::IsBitrateTooHigh(uint32_t bitrate) {
+bool WebRtcVideoEncoderWebOS::IsBitrateTooHigh(uint32_t bitrate) {
   if (base::IsValueInRangeForNumericType<uint32_t>(bitrate * UINT64_C(1000)))
     return false;
   return true;
 }
 
-void WebRtcVideoEncoderWebOSGMP::ReturnEncodedImage(
+void WebRtcVideoEncoderWebOS::OnEncodedData(const uint8_t* buffer,
+                                               uint32_t buffer_size,
+                                               uint64_t time_stamp,
+                                               bool is_key_frame) {
+  if (!buffer || buffer_size <= 0) {
+    LOG(ERROR) << __func__ << " Invalid data info";
+    return;
+  }
+
+  DVLOG(3) << __func__ << ", buffer_size= " << buffer_size
+                                   << ", is_key_frame= " << is_key_frame
+                                   << ", time_stamp= " << time_stamp;
+
+  const base::TimeDelta media_timestamp =
+      base::TimeDelta::FromMilliseconds(time_stamp);
+  base::Optional<uint32_t> rtp_timestamp;
+  base::Optional<int64_t> capture_timestamp_ms;
+  if (!failed_timestamp_match_) {
+    // Pop timestamps until we have a match.
+    while (!pending_timestamps_.empty()) {
+      const auto& front_timestamps = pending_timestamps_.front();
+      if (front_timestamps.media_timestamp_ == media_timestamp) {
+        rtp_timestamp = front_timestamps.rtp_timestamp;
+        capture_timestamp_ms = front_timestamps.capture_time_ms;
+        pending_timestamps_.pop_front();
+        break;
+      }
+      pending_timestamps_.pop_front();
+    }
+  }
+
+  if (!rtp_timestamp.has_value() || !capture_timestamp_ms.has_value()) {
+    failed_timestamp_match_ = true;
+    pending_timestamps_.clear();
+    const int64_t current_time_ms =
+        rtc::TimeMicros() / base::Time::kMicrosecondsPerMillisecond;
+    // RTP timestamp can wrap around. Get the lower 32 bits.
+    rtp_timestamp = static_cast<uint32_t>(current_time_ms * 90);
+    capture_timestamp_ms = current_time_ms;
+  }
+
+  webrtc::EncodedImage encoded_image;
+  encoded_image.SetEncodedData(
+      webrtc::EncodedImageBuffer::Create(buffer, buffer_size));
+  encoded_image.SetTimestamp(rtp_timestamp.value());
+  encoded_image._encodedWidth = input_visible_size_.width();
+  encoded_image._encodedHeight = input_visible_size_.height();
+  encoded_image.capture_time_ms_ = capture_timestamp_ms.value();
+  encoded_image._frameType =
+      (is_key_frame ? webrtc::VideoFrameType::kVideoFrameKey
+                    : webrtc::VideoFrameType::kVideoFrameDelta);
+  encoded_image.content_type_ = video_content_type_;
+  encoded_image._completeFrame = true;
+
+  main_task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&WebRtcVideoEncoderWebOS::ReturnEncodedImage,
+                     weak_this_, encoded_image));
+}
+
+void WebRtcVideoEncoderWebOS::ReturnEncodedImage(
     const webrtc::EncodedImage& image) {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   DVLOG(3) << __func__;
@@ -387,132 +502,14 @@ void WebRtcVideoEncoderWebOSGMP::ReturnEncodedImage(
   }
 }
 
-void WebRtcVideoEncoderWebOSGMP::NotifyLoadCompleted() {
-  DVLOG(3) << __func__;
-  DCHECK(main_task_runner_->BelongsToCurrentThread());
+uint32_t WebRtcVideoEncoderWebOS::UpdateFrameSize(gfx::Size new_size) {
+  DVLOG(3) << __func__ << " new_size: " << new_size.ToString();
 
-  if (!load_completed_) {
-    SetStatus(WEBRTC_VIDEO_CODEC_OK);
-    SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_OK);
-    load_completed_ = true;
+  input_visible_size_ = new_size;
+  if (!video_encoder_api_->UpdateEncodingResolution(new_size.width(),
+                                                    new_size.height())) {
+    return WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE;
   }
+  return WEBRTC_VIDEO_CODEC_OK;
 }
-
-void WebRtcVideoEncoderWebOSGMP::NotifyEncodedBufferReady(const void* data) {
-  DCHECK(main_task_runner_->BelongsToCurrentThread());
-
-  if (!data) {
-    LOG(ERROR) << __func__ << " Invalid buffer pointer";
-    return;
-  }
-
-  const ENCODED_BUFFER_T* encoded_buffer =
-          static_cast<const ENCODED_BUFFER_T*>(data);
-
-  DVLOG(3) << __func__ << ", buffer_size=" << encoded_buffer->bufferSize
-           << ", is_key_frame=" << encoded_buffer->isKeyFrame;
-
-  const base::TimeDelta media_timestamp =
-      base::TimeDelta::FromMilliseconds(encoded_buffer->timeStamp);
-  base::Optional<uint32_t> rtp_timestamp;
-  base::Optional<int64_t> capture_timestamp_ms;
-  if (!failed_timestamp_match_) {
-    // Pop timestamps until we have a match.
-    while (!pending_timestamps_.empty()) {
-      const auto& front_timestamps = pending_timestamps_.front();
-      if (front_timestamps.media_timestamp_ == media_timestamp) {
-        rtp_timestamp = front_timestamps.rtp_timestamp;
-        capture_timestamp_ms = front_timestamps.capture_time_ms;
-        pending_timestamps_.pop_front();
-        break;
-      }
-      pending_timestamps_.pop_front();
-    }
-  }
-
-  if (!rtp_timestamp.has_value() || !capture_timestamp_ms.has_value()) {
-    failed_timestamp_match_ = true;
-    pending_timestamps_.clear();
-    const int64_t current_time_ms =
-        rtc::TimeMicros() / base::Time::kMicrosecondsPerMillisecond;
-    // RTP timestamp can wrap around. Get the lower 32 bits.
-    rtp_timestamp = static_cast<uint32_t>(current_time_ms * 90);
-    capture_timestamp_ms = current_time_ms;
-  }
-
-  webrtc::EncodedImage image;
-  image.SetEncodedData(webrtc::EncodedImageBuffer::Create(
-      static_cast<const uint8_t*>(encoded_buffer->encodedBuffer),
-      encoded_buffer->bufferSize));
-  image._encodedWidth = input_visible_size_.width();
-  image._encodedHeight = input_visible_size_.height();
-  image.SetTimestamp(rtp_timestamp.value());
-  image.capture_time_ms_ = capture_timestamp_ms.value();
-  image._frameType =
-      (encoded_buffer->isKeyFrame ? webrtc::VideoFrameType::kVideoFrameKey
-                                  : webrtc::VideoFrameType::kVideoFrameDelta);
-  image.content_type_ = video_content_type_;
-  image._completeFrame = true;
-
-  ReturnEncodedImage(image);
-}
-
-void WebRtcVideoEncoderWebOSGMP::NotifyEncoderError(const void* data) {
-  DCHECK(main_task_runner_->BelongsToCurrentThread());
-
-  if (!data) {
-    LOG(ERROR) << __func__ << " Invalid buffer pointer";
-    return;
-  }
-
-  const ENCODING_ERRORS_T* error_data =
-      static_cast<const ENCODING_ERRORS_T*>(data);
-
-  int32_t retval = WEBRTC_VIDEO_CODEC_ERROR;
-  switch (error_data->errorCode) {
-    case MEDIA_MSG_ERR_LOAD:
-    case MEDIA_MSG_ERR_POLICY:
-      retval = WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE;
-      break;
-    case MEDIA_MSG_ERR_PLAYING:
-      retval = WEBRTC_VIDEO_CODEC_ERROR;
-      break;
-    default:
-      NOTREACHED() << " errorCode: " << error_data->errorCode << " Not handled";
-      break;
-  }
-
-  media_encoder_client_.reset();
-
-  SetStatus(retval);
-  if (async_waiter_)
-    SignalAsyncWaiter(retval);
-}
-
-void WebRtcVideoEncoderWebOSGMP::DispatchCallback(const gint cb_type,
-                                                  const void* cb_data) {
-  DCHECK(main_task_runner_->BelongsToCurrentThread());
-
-  VLOG(1) << __func__ << " : " << EncoderCbTypeToString(cb_type);
-  switch (static_cast<ENCODER_CB_TYPE_T>(cb_type)) {
-    case ENCODER_CB_LOAD_COMPLETE: {
-      NotifyLoadCompleted();
-      break;
-    }
-
-    case ENCODER_CB_BUFFER_ENCODED: {
-      NotifyEncodedBufferReady(cb_data);
-      break;
-    }
-
-    case ENCODER_CB_NOTIFY_ERROR: {
-      NotifyEncoderError(cb_data);
-      break;
-    }
-    default:
-      NOTREACHED() << " cb_type: " << cb_type << " Not handled";
-      break;
-  }
-}
-
 }  // namespace media

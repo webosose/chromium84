@@ -87,11 +87,9 @@ class WebRtcVideoEncoderWebOS : public WebRtcVideoEncoder {
   // Frame sizes.
   gfx::Size input_visible_size_;
 
-#if defined(USE_GST_MEDIA)
   // Used for extracting I420 buffers from webrtc::VideoFrame
   std::unique_ptr<uint8_t> i420_buffer_;
   size_t i420_buffer_size_ = 0;
-#endif
 
   base::WeakPtr<WebRtcVideoEncoderWebOS> weak_this_;
   base::WeakPtrFactory<WebRtcVideoEncoderWebOS> weak_this_factory_{this};

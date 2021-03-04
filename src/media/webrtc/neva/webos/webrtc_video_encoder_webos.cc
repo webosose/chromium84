@@ -157,7 +157,6 @@ void WebRtcVideoEncoderWebOS::CreateAndInitialize(
     return;
   }
 
-#if defined(USE_GST_MEDIA)
   i420_buffer_size_ = webrtc::CalcBufferSize(webrtc::VideoType::kI420,
                                              input_visible_size.width(),
                                              input_visible_size.height());
@@ -167,7 +166,6 @@ void WebRtcVideoEncoderWebOS::CreateAndInitialize(
     SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_UNINITIALIZED);
     return;
   }
-#endif
 
   video_encoder_api_.reset(new mcil::encoder::VideoEncoderAPI());
   if (!video_encoder_api_) {
@@ -263,7 +261,6 @@ void WebRtcVideoEncoderWebOS::EncodeFrame(
     }
   }
 
-#if defined(USE_GST_MEDIA)
   if (i420_buffer_size_ != webrtc::ExtractBuffer(input_image->ToI420(),
                                                  i420_buffer_size_,
                                                  i420_buffer_.get())) {
@@ -272,6 +269,7 @@ void WebRtcVideoEncoderWebOS::EncodeFrame(
     return;
   }
 
+#if defined(USE_GST_MEDIA)
   if (MCIL_MEDIA_OK != video_encoder_api_->Encode(i420_buffer_.get(),
                                                  i420_buffer_size_)) {
     LOG(ERROR) << __func__ << " Error feeding i420_buffer.";
@@ -281,16 +279,16 @@ void WebRtcVideoEncoderWebOS::EncodeFrame(
     return;
   }
 #else
-  rtc::scoped_refptr<webrtc::PlanarYuv8Buffer> yuv_buffer =
-      input_image->ToI420();
-  uint32_t y_size = yuv_buffer->StrideY() * yuv_buffer->height();
-  uint32_t u_size = yuv_buffer->StrideU() * ((yuv_buffer->height() + 1) / 2);
-  uint32_t v_size = yuv_buffer->StrideV() * ((yuv_buffer->height() + 1) / 2);
-  if (MCIL_MEDIA_OK != video_encoder_api_->Encode(
-                          yuv_buffer->DataY(), y_size,
-                          yuv_buffer->DataU(), u_size,
-                          yuv_buffer->DataV(), v_size,
-                          new_frame->timestamp(), force_keyframe)) {
+  rtc::scoped_refptr<webrtc::PlanarYuv8Buffer> input_frame =
+       input_image->ToI420();
+
+  int y_size = input_frame->width() * input_frame->height();
+  int uv_size = input_frame->ChromaWidth() * input_frame->ChromaHeight();
+
+  if (MCIL_MEDIA_OK != video_encoder_api_->Encode(i420_buffer_.get(), y_size,
+          i420_buffer_.get() + y_size, uv_size,
+          i420_buffer_.get() + y_size + uv_size, uv_size,
+          new_frame->timestamp(), force_keyframe)) {
     LOG(ERROR) << __func__ << " Error feeding buffer.";
     // Fallback to software if h/w encoder is not available.
     SignalAsyncWaiter(video_encoder_api_->IsEncoderAvailable() ?
@@ -354,12 +352,10 @@ void WebRtcVideoEncoderWebOS::Destroy(base::WaitableEvent* async_waiter) {
   DVLOG(3) << __func__;
   DCHECK(encode_task_runner_->BelongsToCurrentThread());
 
-#if defined(USE_GST_MEDIA)
   if (i420_buffer_ != nullptr) {
     i420_buffer_.reset();
     i420_buffer_ = nullptr;
   }
-#endif
 
   if (video_encoder_api_) {
     video_encoder_api_.reset();

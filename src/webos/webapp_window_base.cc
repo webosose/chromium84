@@ -136,9 +136,13 @@ void WebAppWindowBase::InitWindow(int width, int height) {
 }
 
 void WebAppWindowBase::Show() {
+  if (!webapp_window_) {
+    LOG(INFO) << __PRETTY_FUNCTION__ << ": no webapp_window_";
+    return;
+  }
+
   webapp_window_->FinishPrepareStackForWebApp();
-  if (webapp_window_)
-    webapp_window_->ActivateAndShow();
+  webapp_window_->ActivateAndShow();
 }
 
 void WebAppWindowBase::Hide() {

@@ -120,7 +120,6 @@ CHROME_FLAGS=" \
   --disable-infobars\
   --disable-new-video-renderer\
   --disable-translate\
-  --disable-web-security\
   --enable-file-cookies\
   --enable-neva-ime\
   --enable-neva-media-service\

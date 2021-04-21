@@ -40,6 +40,12 @@ struct CrossThreadCopier<webrtc::VideoEncoder::RateControlParameters>
 
 namespace media {
 
+constexpr int kMinH264QP = 24;
+constexpr int kMaxH264QP = 37;
+
+constexpr int kMinVPXQP = 29;
+constexpr int kMaxVPXQP = 95;
+
 media::VideoEncodeAccelerator::SupportedProfiles
 WebRtcPassThroughVideoEncoder::GetSupportedEncodeProfiles() {
   media::VideoEncodeAccelerator::SupportedProfiles supported_profiles;
@@ -111,6 +117,11 @@ int WebRtcPassThroughVideoEncoder::InitEncode(
         << "VP9 SVC not yet supported by HW codecs, falling back to sofware.";
     return WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE;
   }
+
+  if (codec->codecType == webrtc::kVideoCodecH264)
+    scaling_settings_ = VideoEncoder::ScalingSettings(kMinH264QP, kMaxH264QP);
+  else
+    scaling_settings_ = VideoEncoder::ScalingSettings(kMinVPXQP, kMaxVPXQP);
 
   video_encoder_ = media::WebRtcVideoEncoder::Create(
       main_task_runner_, encode_task_runner_, codec->codecType,
@@ -254,6 +265,9 @@ WebRtcPassThroughVideoEncoder::GetEncoderInfo() const {
   info.supports_native_handle = false;
   info.is_hardware_accelerated = true;
   info.has_internal_source = false;
+  info.requested_resolution_alignment = 8;
+  info.scaling_settings = scaling_settings_;
+
   return info;
 }
 

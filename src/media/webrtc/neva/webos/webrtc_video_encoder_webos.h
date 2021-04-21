@@ -30,6 +30,7 @@ class VideoEncoderAPI;
 
 namespace webrtc {
 class EncodedImage;
+class H264BitstreamParser;
 }  // namespace webrtc
 
 namespace media {
@@ -69,6 +70,8 @@ class WebRtcVideoEncoderWebOS : public WebRtcVideoEncoder {
   void OnEncodedData(const uint8_t* buffer, uint32_t buffer_size,
                      uint64_t time_stamp, bool is_key_frame);
 
+  bool GetQP(const webrtc::EncodedImage& encoded_image, int* qp);
+
   // Return an encoded output buffer to WebRTC.
   void ReturnEncodedImage(const webrtc::EncodedImage& image);
 
@@ -86,6 +89,9 @@ class WebRtcVideoEncoderWebOS : public WebRtcVideoEncoder {
 
   // Frame sizes.
   gfx::Size input_visible_size_;
+
+   // For QP
+  std::unique_ptr<webrtc::H264BitstreamParser> h264_bitstream_parser_;
 
   // Used for extracting I420 buffers from webrtc::VideoFrame
   std::unique_ptr<uint8_t> i420_buffer_;

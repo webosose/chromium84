@@ -65,6 +65,9 @@ class MEDIA_EXPORT WebRtcPassThroughVideoEncoder : public webrtc::VideoEncoder {
   scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
   scoped_refptr<base::SingleThreadTaskRunner> encode_task_runner_;
 
+  webrtc::VideoEncoder::ScalingSettings scaling_settings_
+      = webrtc::VideoEncoder::ScalingSettings::kOff;
+
   // The WebRtcVideoEncoder that does all the work.
   scoped_refptr<WebRtcVideoEncoder> video_encoder_;
 

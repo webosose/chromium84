@@ -33,8 +33,11 @@
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
 #include "third_party/blink/renderer/platform/webrtc/webrtc_video_frame_adapter.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
+#include "third_party/webrtc/common_video/h264/h264_bitstream_parser.h"
 #include "third_party/webrtc/common_video/libyuv/include/webrtc_libyuv.h"
 #include "third_party/webrtc/modules/video_coding/include/video_codec_interface.h"
+#include "third_party/webrtc/modules/video_coding/utility/vp8_header_parser.h"
+#include "third_party/webrtc/modules/video_coding/utility/vp9_uncompressed_header_parser.h"
 #include "third_party/webrtc/rtc_base/time_utils.h"
 
 namespace media {
@@ -156,6 +159,9 @@ void WebRtcVideoEncoderWebOS::CreateAndInitialize(
     SignalAsyncWaiter(WEBRTC_VIDEO_CODEC_UNINITIALIZED);
     return;
   }
+
+  // For QP
+  h264_bitstream_parser_.reset(new webrtc::H264BitstreamParser());
 
   i420_buffer_size_ = webrtc::CalcBufferSize(webrtc::VideoType::kI420,
                                              input_visible_size.width(),
@@ -425,10 +431,31 @@ void WebRtcVideoEncoderWebOS::OnEncodedData(const uint8_t* buffer,
   encoded_image.content_type_ = video_content_type_;
   encoded_image._completeFrame = true;
 
+  int qp;
+  if (GetQP(encoded_image, &qp))
+    encoded_image.qp_ = qp;
+
   main_task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&WebRtcVideoEncoderWebOS::ReturnEncodedImage,
                      weak_this_, encoded_image));
+}
+
+bool WebRtcVideoEncoderWebOS::GetQP(
+    const webrtc::EncodedImage& encoded_image, int* qp) {
+  switch (video_codec_type_) {
+    case webrtc::kVideoCodecVP8:
+      return webrtc::vp8::GetQp(encoded_image.data(), encoded_image.size(), qp);
+    case webrtc::kVideoCodecVP9:
+      return webrtc::vp9::GetQp(encoded_image.data(), encoded_image.size(), qp);
+    case webrtc::kVideoCodecH264:
+      h264_bitstream_parser_->ParseBitstream(encoded_image.data(),
+                                             encoded_image.size());
+      return h264_bitstream_parser_->GetLastSliceQp(qp);
+    default:  // Default is to not provide QP.
+      break;
+  }
+  return false;
 }
 
 void WebRtcVideoEncoderWebOS::ReturnEncodedImage(

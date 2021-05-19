@@ -21,9 +21,11 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "content/browser/web_contents/web_contents_view.h"
+#include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/web_preferences.h"
 #include "neva/app_runtime/public/app_runtime_event.h"
 #include "neva/app_runtime/public/webapp_window_delegate.h"
 #include "neva/app_runtime/public/window_group_configuration.h"
@@ -129,6 +131,8 @@ class WebAppScrollObserver
         state != blink::mojom::InputEventResultState::kConsumed) {
       int input_panel_real_height =
           window_->input_panel_height() > 0 ? window_->input_panel_height() : 0;
+      if (input_panel_real_height)
+        input_panel_real_height += kKeyboardHeightMargin;
       gfx::Rect bounds =
           window_->GetWebContents()->GetContentNativeView()->bounds();
       const blink::WebMouseWheelEvent& wheel_event =
@@ -448,7 +452,10 @@ int WebAppWindow::CalculateTextInputOverlappedHeight(const gfx::Rect& rect) {
                 rect.width() / scale_factor_, rect.height() / scale_factor_);
 
   if (input_bounds.Intersects(scaled_rect))
-    shift_height = input_bounds.bottom() - scaled_rect.y();
+    shift_height =
+        ScrollBarsHidden()
+            ? std::min(input_bounds.bottom(), rect_.bottom()) - scaled_rect.y()
+            : scaled_rect.height();
 
   return shift_height;
 }
@@ -468,7 +475,8 @@ bool WebAppWindow::CanShiftContent(int shift_height) {
 
 void WebAppWindow::InputPanelVisibilityChanged(bool visible) {
   if (visible) {
-    web_app_scroll_observer_.reset(new WebAppScrollObserver(this));
+    if (ScrollBarsHidden())
+      web_app_scroll_observer_.reset(new WebAppScrollObserver(this));
     CheckShiftContent();
   } else {
     web_app_scroll_observer_.reset();
@@ -508,7 +516,7 @@ void WebAppWindow::ShiftContentByY(int shift_height) {
     return;
 
   gfx::Rect bounds = web_contents_->GetContentNativeView()->bounds();
-  shift_y_ = bounds.y() - shift_height;
+  shift_y_ = ScrollBarsHidden() ? bounds.y() - shift_height : -shift_height;
 
   if (!is_shifted_content_) {
     native_view_bounds_for_restoring_ = bounds;
@@ -529,13 +537,44 @@ void WebAppWindow::ShiftContentByY(int shift_height) {
 
 void WebAppWindow::UpdateViewportYCallback() {
   gfx::Rect bounds = web_contents_->GetContentNativeView()->bounds();
-  web_contents_->GetContentNativeView()->SetBounds(gfx::Rect(
-      bounds.x(), shift_y_, bounds.width(), bounds.height()));
+  gfx::Rect new_bounds =
+      ScrollBarsHidden()
+          ? gfx::Rect(bounds.x(), shift_y_, bounds.width(), bounds.height())
+          : gfx::Rect(bounds.x(), bounds.y(), bounds.width(),
+                      bounds.height() + shift_y_);
+  web_contents_->GetContentNativeView()->SetBounds(new_bounds);
+  if (is_shifted_content_)
+    viewport_updated_ = true;
+}
+
+void WebAppWindow::FrameSizeChanged(content::RenderFrameHost* render_frame_host,
+                                    const gfx::Size& frame_size) {
+  content::WebContentsObserver::FrameSizeChanged(render_frame_host, frame_size);
+  ui::InputMethod* ime = host_->AsWindowTreeHost()->GetInputMethod();
+  if (ime && viewport_updated_) {
+    viewport_updated_ = false;
+    gfx::Rect panel_rect_margin = gfx::Rect(
+        input_panel_rect_.x(), input_panel_rect_.y() - kKeyboardHeightMargin,
+        input_panel_rect_.width(),
+        input_panel_rect_.height() + kKeyboardHeightMargin);
+    ime->SetOnScreenKeyboardBounds(panel_rect_margin);
+  }
+}
+
+bool WebAppWindow::ScrollBarsHidden() {
+  if (!web_contents_)
+    return true;
+  content::RenderViewHost* rvh = web_contents_->GetRenderViewHost();
+  if (!rvh)
+    return true;
+  web_contents_->SyncRendererPrefs();
+  return rvh->GetWebkitPreferences().hide_scrollbars;
 }
 
 void WebAppWindow::RestoreContentByY() {
   if (is_shifted_content_) {
-    shift_y_ = native_view_bounds_for_restoring_.y();
+    shift_y_ =
+        ScrollBarsHidden() ? native_view_bounds_for_restoring_.y() : -shift_y_;
     UpdateViewportYCallback();
     is_shifted_content_ = false;
   }

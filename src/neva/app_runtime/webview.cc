@@ -640,6 +640,7 @@ void WebView::UpdatePreferencesAttributeForPrefs(
       break;
     case Attribute::DisallowScrollbarsInMainFrame:
       SetDisallowScrollbarsInMainFrame(enable);
+      preferences->hide_scrollbars = enable;
       break;
     // According commit 5c434bb2 : Remove obsolete Blink popup blocker
     // removed javascript_can_open_windows_automatically preference.

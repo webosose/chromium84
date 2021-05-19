@@ -149,6 +149,8 @@ class WebAppWindow : public views::NativeEventDelegate,
 
   // Overriden from content::WebContentsObserver
   void DidCompleteSwap() override;
+  void FrameSizeChanged(content::RenderFrameHost* render_frame_host,
+                        const gfx::Size& frame_size) override;
 
   // Converting values from |ui::WidgetState| to |neva_app_runtime::WidgetState|
   static WidgetState ToExposedWidgetStateType(ui::WidgetState state);
@@ -180,6 +182,7 @@ class WebAppWindow : public views::NativeEventDelegate,
   void ShiftContentByY(int shift_height);
   void UpdateViewportYCallback();
   void RestoreContentByY();
+  bool ScrollBarsHidden();
 
   views::Widget* widget_ = nullptr;
   views::WebView* webview_ = nullptr;
@@ -197,6 +200,7 @@ class WebAppWindow : public views::NativeEventDelegate,
   gfx::Rect input_panel_rect_;
   gfx::Rect native_view_bounds_for_restoring_;
   bool is_shifted_content_ = false;
+  bool viewport_updated_ = false;
   int shift_y_ = 0;
 
   bool input_panel_visible_ = false;

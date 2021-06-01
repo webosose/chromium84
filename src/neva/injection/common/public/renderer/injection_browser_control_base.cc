@@ -29,9 +29,11 @@ namespace injections {
 
 InjectionBrowserControlBase::InjectionBrowserControlBase(
     blink::WebLocalFrame* web_local_frame) {
-  content::RenderFrame::FromWebFrame(web_local_frame)->
-      GetRemoteAssociatedInterfaces()->GetInterface(
-          &webview_controller_interface_);
+  if (web_local_frame && content::RenderFrame::FromWebFrame(web_local_frame)) {
+    content::RenderFrame::FromWebFrame(web_local_frame)->
+        GetRemoteAssociatedInterfaces()->GetInterface(
+            &webview_controller_interface_);
+  }
 }
 
 InjectionBrowserControlBase::~InjectionBrowserControlBase() {

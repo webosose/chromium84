@@ -550,6 +550,10 @@ void WebAppWindow::UpdateViewportYCallback() {
 void WebAppWindow::FrameSizeChanged(content::RenderFrameHost* render_frame_host,
                                     const gfx::Size& frame_size) {
   content::WebContentsObserver::FrameSizeChanged(render_frame_host, frame_size);
+
+  if (!host_)
+    return;
+
   ui::InputMethod* ime = host_->AsWindowTreeHost()->GetInputMethod();
   if (ime && viewport_updated_) {
     viewport_updated_ = false;
